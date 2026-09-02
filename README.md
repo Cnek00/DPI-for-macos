@@ -1,198 +1,114 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white"/>
-<img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white"/>
-<img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white"/>
-<img src="https://img.shields.io/badge/Cloudflare-F38020?style=for-the-badge&logo=cloudflare&logoColor=white"/>
+<img src="https://img.shields.io/badge/macOS-Apple_Silicon_%26_Intel-000000?style=for-the-badge&logo=apple&logoColor=white"/>
+<img src="https://img.shields.io/badge/Discord-Bypass_%26_Ping_Shield-5865F2?style=for-the-badge&logo=discord&logoColor=white"/>
+<img src="https://img.shields.io/badge/Cloudflare_WARP-Zero_Lag-F38020?style=for-the-badge&logo=cloudflare&logoColor=white"/>
+<img src="https://img.shields.io/badge/SpoofDPI-Deep_Packet_Bypass-10B981?style=for-the-badge&logo=shield&logoColor=white"/>
 
-# 🎮 Discord DPI Bypass for macOS
+# 🎮 Discord DPI Bypass & Optimizer PRO for macOS
 
-**macOS için Discord ping sorununu tamamen çözen otomatik DPI atlama sistemi**
+**macOS için Discord kısıtlamalarını kaldıran, oyun pingini (UDP) kesinlikle etkilemeyen yeni nesil kontrol paneli.**
 
-*Oyun içinde sıfır ekstra ping, Discord'da kesintisiz bağlantı*
+*Sıfır ek ping, canlı gecikme monitörü, tek tıkla otomatik başlatma ve modern Cyberpunk/Glassmorphism arayüz.*
 
 </div>
 
 ---
 
-## 🤔 Bu Nedir?
+## 🌟 Neler Yeni? (v4.0 PRO)
 
-Bazı internet servis sağlayıcıları (ISP'ler) **DPI (Deep Packet Inspection)** yöntemiyle Discord trafiğini kısıtlar veya yavaşlatır. Bu sistem, **SpoofDPI** aracını ve **Cloudflare WARP** VPN'ini birlikte kullanarak:
-
-- Discord bağlantısını kısıtlamadan geçirir
-- Oyun trafiğinizi (UDP) **hiç etkilemez**
-- Ekstra ping eklemez
-- Kolay bir GUI ile yönetilir
+- 🎨 **Modern Cyberpunk / Glassmorphism Kontrol Paneli**: Animasyonlu orblar, canlı grafikler ve şık Discord estetiği.
+- ⚡ **Tek Tıkla Akıllı Başlatma**: `WARP → SpoofDPI → Discord Web App` sırasını otomatik olarak ve hatasız yönetir.
+- 🔐 **Gelişmiş Şifre (Sudo) Yönetimi**: Şifrenizi ister terminalden açılışta 1 kere girin, ister arayüzdeki şifre kartından test edip kaydedin.
+- 🚀 **Mac Açılışında Otomatik Başlat**: Tek anahtarla bilgisayar açıldığında otomatik devreye girme desteği (LaunchAgent).
+- 📊 **Canlı Discord Ping & Ağ Monitörü**: Discord sunucularına olan anlık milisaniye gecikmenizi canlı çizen dinamik grafik.
+- 📜 **Canlı Terminal Günlüğü**: Arka planda ne olup bittiğini anlık gösteren renk kodlu konsol.
+- 🎮 **Oyun Ping Koruması**: UDP trafiği yönlendirilmez, CS2, Valorant, LoL veya diğer oyunlardaki pinginiz asla artmaz.
 
 ---
 
-## 📋 Gereksinimler
+## 📋 Gereksinimler & Kurulum
 
-Sistemi kullanmadan önce aşağıdaki yazılımların kurulu olması gerekir:
+Sistemi kullanmadan önce aşağıdaki paketlerin kurulu olduğundan emin olun:
 
 ### 1. Homebrew (macOS Paket Yöneticisi)
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-### 2. Cloudflare WARP
+### 2. Cloudflare WARP & SpoofDPI
 ```bash
+# Cloudflare WARP
 brew install --cask cloudflare-warp
-```
-> Kurulumdan sonra WARP uygulamasını bir kez açın ve hesap oluşturun (ücretsiz).
 
-### 3. SpoofDPI
-```bash
+# SpoofDPI
 brew install spoofdpi
-```
 
-### 4. Python 3 (Tkinter ile)
-```bash
-brew install python-tk
-```
-
-### 5. Brave Browser *(önerilen)*
-```bash
+# Brave Browser (Önerilen - En düşük gecikme ve web app modu için)
 brew install --cask brave-browser
 ```
-> Discord'u Brave Browser üzerinden web uygulaması olarak çalıştırır. Daha iyi performans sunar.
 
 ---
 
-## 🚀 Kurulum
+## 🚀 Başlatma & Kullanım
 
-```bash
-# Repoyu klonla
-git clone https://github.com/Cnek00/DPI-for-macos.git
-cd DPI-for-macos
+### 1. Otomatik & Önerilen Yöntem (PRO Dashboard)
 
-# Çalıştırma izni ver
-chmod +x Baslat.command
-chmod +x Warp_Ayarlari.command
-chmod +x Mac_GoodbyeDPI.command
-chmod +x Discord_Uygulamasi.command
-```
+Sadece **`Baslat.command`** dosyasına çift tıklayın!
+
+1. Terminal açılır ve SpoofDPI için yönetici şifrenizi ister (ister terminalde girin, ister Enter'a basıp panelden girin).
+2. Modern, animasyonlu kontrol paneli bağımsız bir masaüstü penceresi olarak açılır.
+3. **`🚀 SİSTEMİ BAŞLAT (TEK TIK)`** butonuna tıklayın:
+   - 🛡️ WARP bağlanır
+   - 🟢 SpoofDPI bypass başlatılır
+   - 💬 Discord ultra hızlı Web App modunda açılır
 
 ---
 
-## 🖥️ Kullanım
+### 2. Manuel Komut Dosyaları (İsteğe Bağlı)
 
-### Otomatik Yöntem (Önerilen)
-
-`Baslat.command` dosyasına çift tıklayın. Bu script:
-1. Tüm bağımlılıkları kontrol eder
-2. Python GUI başlatıcısını açar
-3. GUI üzerinden tüm sistemi tek tuşla yönetebilirsiniz
-
-### Manuel Yöntem (Sırasıyla)
-
-Eğer GUI kullanmak istemezseniz, aşağıdaki dosyaları **sırasıyla** çalıştırın:
+Eğer komut satırından tek tek çalıştırmak isterseniz orijinal dosyalar korunmuştur:
 
 ```
 1️⃣  Warp_Ayarlari.command     → WARP VPN modunu seç ve bağlan
-2️⃣  Mac_GoodbyeDPI.command    → SpoofDPI DPI atlama başlat  
+2️⃣  Mac_GoodbyeDPI.command    → SpoofDPI DPI atlamasını başlat  
 3️⃣  Discord_Uygulamasi.command → Brave üzerinden Discord'u aç
 ```
-
-> ⚠️ **Önemli:** Sıra kritiktir. VPN önce aktif olmalı, ardından DPI atlama başlamalı.
-
----
-
-## 🎨 GUI Özellikleri
-
-<div align="center">
-
-| Özellik | Açıklama |
-|---------|----------|
-| 🚀 Tek Tıkla Başlatma | Tüm sistemi sırasıyla otomatik başlatır |
-| 📊 Canlı Durum | WARP ve SpoofDPI durumu gerçek zamanlı gösterilir |
-| 📋 Adım Göstergesi | Hangi adımın tamamlandığını görir |
-| ⚡ WARP Modu | VPN veya Proxy modu arasında seçim |
-| 📜 Sistem Günlüğü | Tüm işlemler kayıt altına alınır |
-| ⏱️ Çalışma Süresi | Sistemin ne kadar süredir aktif olduğunu gösterir |
-| 🔧 Hızlı İşlemler | Tek tek hizmetleri başlatıp durdurabilirsiniz |
-
-</div>
 
 ---
 
 ## ⚙️ WARP Modları
 
-### 🛡️ Tam VPN Modu (`warp`)
-- Tüm cihaz trafiği Cloudflare üzerinden geçer
-- En güçlü koruma
-- Tüm uygulamalar korunur
-
-### 🔌 Proxy Modu (`proxy`)
-- Sadece belirli uygulamalar proxy üzerinden bağlanır
-- Port: `40000` üzerinden SOCKS5 proxy
-- Daha hafif, oyun UDP trafiğine etkisi minimum
+| Mod | Açıklama |
+|---|---|
+| **🛡️ Tam VPN (`warp`)** | Tüm cihaz trafiği Cloudflare güvenli tünelinden geçer. |
+| **🔌 SOCKS5 Proxy (`proxy`)** | Port 40000 üzerinden yerel proxy açar, sistem genelini etkilemez. |
 
 ---
 
-## 🛠️ Sorun Giderme
-
-### SpoofDPI başlamıyor
-```bash
-# sudo yetkisi gerekiyor, şifreni gir
-sudo /opt/homebrew/opt/spoofdpi/bin/spoofdpi --auto-configure-network --dns-mode doh --no-tui
-```
-
-### WARP bağlanmıyor
-```bash
-# WARP servisini yeniden başlat
-warp-cli disconnect
-warp-cli connect
-```
-
-### Tkinter bulunamadı
-```bash
-# python.org'dan Python indir veya:
-brew install python-tk
-```
-
-### Brave Browser üzerinden Discord açılmıyor
-```bash
-# Brave yolunu kontrol et
-ls /Applications/Brave\ Browser.app
-# Yoksa:
-brew install --cask brave-browser
-```
-
----
-
-## 📁 Dosya Yapısı
+## 📁 Proje Dosya Yapısı
 
 ```
 DPI-for-macos/
-├── Baslat.command              # ← Ana başlatıcı (bunu çift tıkla!)
-├── discord_launcher.py         # Python GUI uygulaması
-├── Warp_Ayarlari.command       # WARP ayar scripti
-├── Mac_GoodbyeDPI.command      # SpoofDPI başlatma scripti
-├── Discord_Uygulamasi.command  # Discord açma scripti
-└── README.md
+├── Baslat.command              # 🚀 Ana başlatıcı (Çift tıklayın!)
+├── discord_launcher.py         # 🖥️ PRO Dashboard Motoru & Web App
+├── Warp_Ayarlari.command       # 🛡️ WARP Ayarları
+├── Mac_GoodbyeDPI.command      # 🟢 SpoofDPI Başlatıcı
+├── Discord_Uygulamasi.command  # 💬 Discord Başlatıcı
+├── github_push.command         # 📤 GitHub Güncelleme Aracı
+└── README.md                   # 📖 Dokümantasyon
 ```
 
 ---
 
-## 🔒 Güvenlik Notu
+## 🔒 Güvenlik
 
-- `Mac_GoodbyeDPI.command` ağ ayarlarını değiştirmek için `sudo` yetkisi ister — bu normaldir
-- WARP, Cloudflare'in resmi uygulamasıdır ve güvenilirdir
-- SpoofDPI yalnızca DNS/HTTPS sorgularını manipüle eder, trafiği şifre çözmez
+- Şifreniz asla kalıcı olarak dosyalara yazılmaz, sadece RAM üzerinde `sudo -S` oturumu için tutulur.
+- SpoofDPI açık kaynaklı bir DPI bypass aracıdır, trafiği çözmez veya kaydetmez.
+- Cloudflare WARP resmi ve güvenli DNS/VPN altyapısı sunar.
 
 ---
 
 ## 📄 Lisans
 
-MIT License © 2025 Cnek00
-
----
-
-<div align="center">
-
-⭐ **Bu projeyi beğendiyseniz star vermeyi unutmayın!**
-
-[GitHub'da Görüntüle](https://github.com/Cnek00/DPI-for-macos) · [Sorun Bildir](https://github.com/Cnek00/DPI-for-macos/issues)
-
-</div>
+MIT License © 2026 Cnek00
