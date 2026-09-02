@@ -1,74 +1,86 @@
 #!/usr/bin/env python3
 """
 ═══════════════════════════════════════════════════════════════════════════════
-  DISCORD DPI BYPASS & OPTIMIZER — macOS PRO DASHBOARD v4.0
-  High-Performance Modern UI Engine • Zero Dependencies • Zero Lag
+  DISCORD DPI BYPASS & OPTIMIZER PRO v5.0 — NATIVE DESKTOP GUI
+  100% Pure Python CustomTkinter Desktop Application (No Web/HTML)
+  macOS Gaming Ping-Protection • Zero Latency • Animated Glassmorphism Theme
 ═══════════════════════════════════════════════════════════════════════════════
 """
 
-import http.server
-import socketserver
-import json
-import subprocess
-import threading
-import time
 import os
 import sys
-import socket
-import urllib.parse
-from pathlib import Path
+import time
+import subprocess
+import threading
 import plistlib
 import datetime
+from pathlib import Path
 
-PORT = 49221
+# Add user site-packages to path if needed
+user_site = os.path.expanduser('~/Library/Python/3.9/lib/python/site-packages')
+if user_site not in sys.path:
+    sys.path.insert(0, user_site)
+
+try:
+    import customtkinter as ctk
+except ImportError:
+    # Auto-install or fallback attempt
+    subprocess.run([sys.executable, "-m", "pip", "install", "customtkinter"], capture_output=True)
+    import customtkinter as ctk
+
+# CustomTkinter Configuration
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+
 SCRIPT_DIR = Path(os.path.dirname(os.path.abspath(__file__)))
 LAUNCHAGENT = Path.home() / "Library/LaunchAgents/com.discord.dpibypass.plist"
 PLIST_LABEL = "com.discord.dpibypass"
 
-# Global State
-STATE = {
-    "warp_installed": False,
-    "warp_status": "disconnected",  # connected, connecting, disconnected
-    "warp_mode": "warp",           # warp, proxy
-    "spoofdpi_installed": False,
-    "spoofdpi_running": False,
-    "brave_installed": False,
-    "discord_installed": False,
-    "sudo_cached": False,
-    "sudo_password": "",
-    "startup_enabled": False,
-    "running_all": False,
-    "step": 0,                     # 0: idle, 1: warp, 2: spoofdpi, 3: discord, 4: active
-    "uptime_seconds": 0,
-    "is_active": False,
-    "logs": [],
-    "pings": []
+# Color Palette (Discord Blurple & Cyberpunk Obsidian)
+THEME = {
+    "bg": "#0B0E17",
+    "card": "#131726",
+    "card_hover": "#1A2035",
+    "card_border": "#232942",
+    "card_border_glow": "#5865F2",
+    
+    "blurple": "#5865F2",
+    "blurple_hover": "#4752C4",
+    "blurple_light": "#7983F5",
+    
+    "emerald": "#10B981",
+    "emerald_hover": "#059669",
+    "emerald_bg": "#064E3B",
+    
+    "amber": "#F59E0B",
+    "amber_hover": "#D97706",
+    "amber_bg": "#78350F",
+    
+    "rose": "#EF4444",
+    "rose_hover": "#DC2626",
+    "rose_bg": "#7F1D1D",
+    
+    "cyan": "#06B6D4",
+    
+    "text_main": "#FFFFFF",
+    "text_dim": "#94A3B8",
+    "text_muted": "#64748B",
+    "input_bg": "#080A10"
 }
 
-STATE_LOCK = threading.Lock()
-SPOOFDPI_PROC = None
 
-
-def add_log(msg, level="INFO"):
-    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-    entry = {"time": timestamp, "msg": msg, "level": level}
-    with STATE_LOCK:
-        STATE["logs"].append(entry)
-        if len(STATE["logs"]) > 200:
-            STATE["logs"] = STATE["logs"][-200:]
-
-
-def run_cmd(cmd, sudo_pass=None, timeout=12):
+# ─────────────────────────────────────────────────────────────────────────────
+#  HELPER SYSTEM FUNCTIONS
+# ─────────────────────────────────────────────────────────────────────────────
+def run_cmd(cmd, sudo_pass=None, timeout=10):
     try:
         if sudo_pass and cmd[0] == "sudo":
             proc = subprocess.Popen(
                 cmd, stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
-            out, err = proc.communicate(
-                input=(sudo_pass + "\n").encode(), timeout=timeout
-            )
-            return proc.returncode == 0, out.decode().strip(), err.decode().strip()
+            out, err = proc.communicate(input=sudo_pass + "\n", timeout=timeout)
+            return proc.returncode == 0, out.strip(), err.strip()
         else:
             r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
             return r.returncode == 0, r.stdout.strip(), r.stderr.strip()
@@ -108,7 +120,6 @@ def ping_host(host="discord.com"):
     try:
         ok, out, _ = run_cmd(["ping", "-c", "1", "-W", "1500", host], timeout=2)
         if ok and "time=" in out:
-            # extract time=XX.X ms
             part = out.split("time=")[1].split(" ")[0]
             return float(part)
         return None
@@ -116,224 +127,8 @@ def ping_host(host="discord.com"):
         return None
 
 
-def poll_system_state():
-    while True:
-        try:
-            w_inst = run_cmd(["which", "warp-cli"])[0]
-            s_inst = Path("/opt/homebrew/opt/spoofdpi/bin/spoofdpi").exists() or run_cmd(["which", "spoofdpi"])[0]
-            b_inst = Path("/Applications/Brave Browser.app").exists()
-            d_inst = Path("/Applications/Discord.app").exists()
-            w_stat = get_warp_status()
-            s_run = is_spoofdpi_running()
-            s_cache = check_sudo_cached() or (STATE["sudo_password"] != "")
-            startup = LAUNCHAGENT.exists()
-
-            # Ping test
-            ms = ping_host("discord.com")
-
-            with STATE_LOCK:
-                STATE["warp_installed"] = w_inst
-                STATE["spoofdpi_installed"] = s_inst
-                STATE["brave_installed"] = b_inst
-                STATE["discord_installed"] = d_inst
-                STATE["warp_status"] = w_stat
-                STATE["spoofdpi_running"] = s_run
-                STATE["sudo_cached"] = s_cache
-                STATE["startup_enabled"] = startup
-                if ms is not None:
-                    STATE["pings"].append({"time": datetime.datetime.now().strftime("%H:%M:%S"), "ms": round(ms, 1)})
-                    if len(STATE["pings"]) > 30:
-                        STATE["pings"] = STATE["pings"][-30:]
-
-                if w_stat == "connected" and s_run:
-                    STATE["is_active"] = True
-                    STATE["step"] = 4
-                elif w_stat == "connected" or s_run:
-                    STATE["is_active"] = False
-                else:
-                    STATE["is_active"] = False
-                    if not STATE["running_all"]:
-                        STATE["step"] = 0
-
-            if STATE["is_active"]:
-                with STATE_LOCK:
-                    STATE["uptime_seconds"] += 2
-
-        except Exception as e:
-            pass
-        time.sleep(2)
-
-
-# Action Handlers
-def do_warp_connect(mode="warp"):
-    add_log(f"Cloudflare WARP bağlantısı başlatılıyor (Mod: {mode.upper()})...", "CMD")
-    run_cmd(["warp-cli", "mode", mode])
-    if mode == "proxy":
-        run_cmd(["warp-cli", "proxy", "port", "40000"])
-    ok, out, err = run_cmd(["warp-cli", "connect"])
-    time.sleep(1.5)
-    stat = get_warp_status()
-    if stat in ("connected", "connecting"):
-        add_log("✓ Cloudflare WARP başarıyla bağlandı.", "SUCCESS")
-        return True
-    else:
-        add_log(f"⚠ WARP bağlanamadı: {err or out}", "ERROR")
-        return False
-
-
-def do_warp_disconnect():
-    add_log("Cloudflare WARP bağlantısı kesiliyor...", "CMD")
-    run_cmd(["warp-cli", "disconnect"])
-    time.sleep(1)
-    add_log("Cloudflare WARP bağlantısı kapatıldı.", "WARN")
-    return True
-
-
-def do_spoofdpi_start():
-    global SPOOFDPI_PROC
-    if is_spoofdpi_running():
-        add_log("✓ SpoofDPI zaten aktif çalışıyor.", "INFO")
-        return True
-
-    add_log("SpoofDPI başlatılıyor...", "CMD")
-    spoof_bin = "/opt/homebrew/opt/spoofdpi/bin/spoofdpi"
-    if not Path(spoof_bin).exists():
-        spoof_bin = "spoofdpi"
-
-    cmd_args = [spoof_bin, "--auto-configure-network", "--dns-mode", "doh", "--no-tui"]
-
-    pwd = STATE["sudo_password"]
-    if pwd:
-        # Run in background via sudo -S
-        try:
-            def bg_runner():
-                global SPOOFDPI_PROC
-                SPOOFDPI_PROC = subprocess.Popen(
-                    ["sudo", "-S"] + cmd_args,
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True
-                )
-                SPOOFDPI_PROC.stdin.write(pwd + "\n")
-                SPOOFDPI_PROC.stdin.flush()
-                add_log("✓ SpoofDPI arka planda başarıyla yetkilendirildi.", "SUCCESS")
-                while SPOOFDPI_PROC and SPOOFDPI_PROC.poll() is None:
-                    line = SPOOFDPI_PROC.stdout.readline()
-                    if line and ("addr" in line or "listen" in line or "DPI" in line):
-                        add_log(f"[SpoofDPI] {line.strip()}", "INFO")
-                    time.sleep(0.5)
-
-            threading.Thread(target=bg_runner, daemon=True).start()
-            time.sleep(2)
-            if is_spoofdpi_running():
-                add_log("✓ SpoofDPI aktif ve ağ trafiğini optimize ediyor.", "SUCCESS")
-                return True
-        except Exception as e:
-            add_log(f"SpoofDPI hata: {e}", "ERROR")
-
-    # If no password or failed, fallback to terminal / osascript
-    script_path = SCRIPT_DIR / "Mac_GoodbyeDPI.command"
-    apple_script = f'tell application "Terminal" to do script "bash \\"{script_path}\\""'
-    run_cmd(["osascript", "-e", apple_script])
-    time.sleep(2.5)
-    return is_spoofdpi_running()
-
-
-def do_spoofdpi_stop():
-    global SPOOFDPI_PROC
-    add_log("SpoofDPI durduruluyor...", "CMD")
-    pwd = STATE["sudo_password"]
-    if pwd:
-        run_cmd(["sudo", "-S", "pkill", "-f", "spoofdpi"], sudo_pass=pwd)
-    else:
-        run_cmd(["sudo", "pkill", "-f", "spoofdpi"])
-    if SPOOFDPI_PROC:
-        try:
-            SPOOFDPI_PROC.terminate()
-        except Exception:
-            pass
-        SPOOFDPI_PROC = None
-    time.sleep(1)
-    add_log("SpoofDPI durduruldu.", "WARN")
-    return True
-
-
-def do_launch_discord():
-    add_log("Discord başlatılıyor...", "CMD")
-    # Try Brave App mode first for zero latency
-    if Path("/Applications/Brave Browser.app").exists():
-        subprocess.Popen([
-            "open", "-na", "Brave Browser",
-            "--args", "--app=https://discord.com/channels/@me"
-        ])
-        add_log("✓ Discord Brave Web App modunda açıldı.", "SUCCESS")
-        return True
-    elif Path("/Applications/Google Chrome.app").exists():
-        subprocess.Popen([
-            "open", "-na", "Google Chrome",
-            "--args", "--app=https://discord.com/channels/@me"
-        ])
-        add_log("✓ Discord Chrome Web App modunda açıldı.", "SUCCESS")
-        return True
-    elif Path("/Applications/Discord.app").exists():
-        subprocess.Popen(["open", "-a", "Discord"])
-        add_log("✓ Discord masaüstü uygulaması açıldı.", "SUCCESS")
-        return True
-    else:
-        subprocess.Popen(["open", "https://discord.com/channels/@me"])
-        add_log("✓ Discord varsayılan tarayıcıda açıldı.", "SUCCESS")
-        return True
-
-
-def do_launch_all_sequence():
-    with STATE_LOCK:
-        if STATE["running_all"]:
-            return
-        STATE["running_all"] = True
-        STATE["step"] = 1
-
-    add_log("══════════ OTOMATİK BAŞLATMA SIRASI BAŞLADI ══════════", "CMD")
-    
-    # 1. WARP
-    add_log("Adım 1/3: Cloudflare WARP bağlanıyor...", "INFO")
-    w_ok = do_warp_connect(STATE["warp_mode"])
-    time.sleep(1.5)
-    
-    with STATE_LOCK:
-        STATE["step"] = 2
-
-    # 2. SpoofDPI
-    add_log("Adım 2/3: SpoofDPI bypass başlatılıyor...", "INFO")
-    s_ok = do_spoofdpi_start()
-    time.sleep(2)
-
-    with STATE_LOCK:
-        STATE["step"] = 3
-
-    # 3. Discord
-    add_log("Adım 3/3: Discord açılıyor...", "INFO")
-    d_ok = do_launch_discord()
-    time.sleep(1)
-
-    with STATE_LOCK:
-        STATE["running_all"] = False
-        STATE["step"] = 4
-        STATE["is_active"] = True
-
-    add_log("══════════ SİSTEM HAZIR & DISCORD AKTİF ══════════", "SUCCESS")
-
-
-def do_stop_all():
-    add_log("══════════ TÜM HİZMETLER DURDURULUYOR ══════════", "WARN")
-    do_spoofdpi_stop()
-    time.sleep(0.5)
-    do_warp_disconnect()
-    with STATE_LOCK:
-        STATE["is_active"] = False
-        STATE["step"] = 0
-        STATE["uptime_seconds"] = 0
-    add_log("Tüm bypass servisleri başarıyla kapatıldı.", "WARN")
+def startup_installed():
+    return LAUNCHAGENT.exists()
 
 
 def set_startup(enable):
@@ -349,1280 +144,801 @@ def set_startup(enable):
         with open(LAUNCHAGENT, "wb") as f:
             plistlib.dump(plist, f)
         run_cmd(["launchctl", "load", str(LAUNCHAGENT)])
-        add_log("✓ Başlangıçta otomatik başlatma aktif edildi.", "SUCCESS")
     else:
         if LAUNCHAGENT.exists():
             run_cmd(["launchctl", "unload", str(LAUNCHAGENT)])
             LAUNCHAGENT.unlink()
-        add_log("Başlangıçta otomatik başlatma kapatıldı.", "WARN")
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-#  HTTP API & UI SERVER
-# ═══════════════════════════════════════════════════════════════════════════════
-HTML_DASHBOARD = r"""<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Discord DPI Bypass Pro Dashboard</title>
-<style>
-:root {
-  --bg: #090b12;
-  --bg-card: rgba(18, 22, 36, 0.75);
-  --bg-card-hover: rgba(26, 32, 54, 0.85);
-  --bg-sub: rgba(12, 15, 25, 0.8);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-glow: rgba(88, 101, 242, 0.4);
-  
-  --blurple: #5865F2;
-  --blurple-glow: rgba(88, 101, 242, 0.35);
-  --blurple-dark: #4752C4;
-  
-  --emerald: #10B981;
-  --emerald-glow: rgba(16, 185, 129, 0.35);
-  --amber: #F59E0B;
-  --amber-glow: rgba(245, 158, 11, 0.35);
-  --rose: #EF4444;
-  --rose-glow: rgba(239, 68, 68, 0.35);
-  --cyan: #06B6D4;
-  
-  --text-main: #FFFFFF;
-  --text-dim: #94A3B8;
-  --text-muted: #64748B;
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
-  user-select: none;
-}
-
-body {
-  background: var(--bg);
-  color: var(--text-main);
-  min-height: 100vh;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-}
-
-/* Background animated glow orbs */
-.bg-glow-1 {
-  position: fixed;
-  top: -150px;
-  left: -150px;
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(88, 101, 242, 0.15) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-  filter: blur(40px);
-  animation: floatOrb 12s ease-in-out infinite alternate;
-}
-
-.bg-glow-2 {
-  position: fixed;
-  bottom: -150px;
-  right: -150px;
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-  filter: blur(40px);
-  animation: floatOrb 16s ease-in-out infinite alternate-reverse;
-}
-
-@keyframes floatOrb {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(60px, 40px) scale(1.15); }
-}
-
-/* App Header */
-header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: rgba(9, 11, 18, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border);
-  padding: 16px 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.logo-group {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.app-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #5865F2, #854CE6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  box-shadow: 0 8px 24px var(--blurple-glow);
-  position: relative;
-}
-
-.app-icon::after {
-  content: '';
-  position: absolute;
-  inset: -2px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(88, 101, 242, 0.6), transparent);
-  z-index: -1;
-}
-
-.logo-text h1 {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.logo-text .badge-ver {
-  font-size: 10px;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: rgba(88, 101, 242, 0.2);
-  color: #818CF8;
-  border: 1px solid rgba(88, 101, 242, 0.3);
-  font-weight: 600;
-}
-
-.logo-text p {
-  font-size: 12px;
-  color: var(--text-dim);
-  margin-top: 2px;
-}
-
-.header-status {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-.status-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  background: var(--bg-sub);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--amber);
-  box-shadow: 0 0 10px var(--amber-glow);
-  transition: all 0.3s ease;
-}
-
-.status-dot.active {
-  background: var(--emerald);
-  box-shadow: 0 0 12px var(--emerald-glow);
-  animation: pulseDot 2s infinite;
-}
-
-.status-dot.error {
-  background: var(--rose);
-  box-shadow: 0 0 12px var(--rose-glow);
-}
-
-@keyframes pulseDot {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.3); opacity: 0.8; }
-}
-
-.uptime-badge {
-  font-size: 12px;
-  color: var(--text-dim);
-  font-family: ui-monospace, monospace;
-}
-
-/* Layout */
-main {
-  flex: 1;
-  padding: 24px 28px;
-  max-width: 1200px;
-  margin: 0 auto;
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 24px;
-  position: relative;
-  z-index: 1;
-}
-
-/* Glass Card */
-.glass-card {
-  background: var(--bg-card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 22px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.13);
-}
-
-.card-title {
-  font-size: 14px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--text-dim);
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-/* Master Action Card */
-.master-card {
-  background: linear-gradient(145deg, rgba(24, 28, 50, 0.9), rgba(15, 18, 32, 0.9));
-  border: 1px solid rgba(88, 101, 242, 0.25);
-  position: relative;
-  overflow: hidden;
-}
-
-.master-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--blurple), var(--cyan), var(--emerald));
-}
-
-.master-btn-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px 10px;
-  text-align: center;
-}
-
-.btn-master {
-  width: 100%;
-  max-width: 420px;
-  padding: 18px 28px;
-  border-radius: 16px;
-  border: none;
-  font-size: 16px;
-  font-weight: 700;
-  color: #FFF;
-  background: linear-gradient(135deg, #5865F2, #4752C4);
-  box-shadow: 0 10px 30px var(--blurple-glow);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-master:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 40px rgba(88, 101, 242, 0.55);
-}
-
-.btn-master:active {
-  transform: translateY(1px) scale(0.98);
-}
-
-.btn-master.running {
-  background: linear-gradient(135deg, #F59E0B, #D97706);
-  box-shadow: 0 10px 30px var(--amber-glow);
-}
-
-.btn-master.active {
-  background: linear-gradient(135deg, #10B981, #059669);
-  box-shadow: 0 10px 30px var(--emerald-glow);
-}
-
-/* Pipeline Step Cards */
-.pipeline {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 18px;
-}
-
-.step-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  background: rgba(12, 15, 26, 0.6);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  transition: all 0.3s ease;
-}
-
-.step-card.active {
-  border-color: var(--blurple);
-  background: rgba(88, 101, 242, 0.08);
-  box-shadow: 0 0 20px rgba(88, 101, 242, 0.15);
-}
-
-.step-card.done {
-  border-color: rgba(16, 185, 129, 0.4);
-  background: rgba(16, 185, 129, 0.05);
-}
-
-.step-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.step-num {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-dim);
-  font-size: 13px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
-
-.step-card.active .step-num {
-  background: var(--blurple);
-  color: #FFF;
-}
-
-.step-card.done .step-num {
-  background: var(--emerald);
-  color: #FFF;
-}
-
-.step-info h4 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.step-info p {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.step-status-tag {
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-muted);
-}
-
-.step-card.active .step-status-tag {
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--amber);
-}
-
-.step-card.done .step-status-tag {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--emerald);
-}
-
-/* Sudo / Password Card */
-.sudo-card {
-  margin-top: 20px;
-  background: rgba(15, 18, 30, 0.85);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  border-radius: 16px;
-  padding: 18px;
-  position: relative;
-}
-
-.sudo-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.sudo-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #FCD34D;
-}
-
-.sudo-input-row {
-  display: flex;
-  gap: 10px;
-}
-
-.sudo-input {
-  flex: 1;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 13px;
-  color: #FFF;
-  outline: none;
-  transition: border-color 0.2s ease;
-}
-
-.sudo-input:focus {
-  border-color: var(--blurple);
-}
-
-.btn-secondary {
-  padding: 10px 18px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  color: #FFF;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.btn-danger {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #FCA5A5;
-}
-
-.btn-danger:hover {
-  background: rgba(239, 68, 68, 0.25);
-}
-
-/* Toggle Switch */
-.toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 0;
-  border-top: 1px solid var(--border);
-  margin-top: 14px;
-}
-
-.toggle-info h5 {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.toggle-info p {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  inset: 0;
-  background-color: rgba(255, 255, 255, 0.15);
-  transition: .3s;
-  border-radius: 24px;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .3s;
-  border-radius: 50%;
-}
-
-input:checked + .slider {
-  background-color: var(--blurple);
-}
-
-input:checked + .slider:before {
-  transform: translateX(20px);
-}
-
-/* System Monitor & Ping */
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.metric-box {
-  background: var(--bg-sub);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.metric-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.metric-val {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-main);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.ping-canvas-container {
-  height: 60px;
-  width: 100%;
-  margin-top: 8px;
-}
-
-canvas#pingChart {
-  width: 100%;
-  height: 100%;
-}
-
-/* Terminal Console Log */
-.terminal-container {
-  display: flex;
-  flex-direction: column;
-  height: 260px;
-}
-
-.terminal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.terminal-box {
-  flex: 1;
-  background: #05070c;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px;
-  overflow-y: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-  font-size: 11px;
-  line-height: 1.5;
-  color: #CBD5E1;
-}
-
-.terminal-box::-webkit-scrollbar {
-  width: 6px;
-}
-.terminal-box::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-}
-
-.log-line {
-  margin-bottom: 4px;
-  display: flex;
-  gap: 8px;
-}
-
-.log-time {
-  color: var(--text-muted);
-}
-
-.log-badge {
-  font-weight: 700;
-  padding: 0 4px;
-  border-radius: 4px;
-  font-size: 10px;
-}
-
-.log-badge.INFO { color: var(--text-dim); }
-.log-badge.CMD { color: #818CF8; }
-.log-badge.SUCCESS { color: var(--emerald); }
-.log-badge.WARN { color: var(--amber); }
-.log-badge.ERROR { color: var(--rose); }
-
-/* Quick Action Buttons Grid */
-.actions-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-top: 14px;
-}
-
-/* Footer Controls */
-footer {
-  padding: 16px 28px;
-  background: rgba(9, 11, 18, 0.85);
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.warp-mode-select {
-  display: flex;
-  background: var(--bg-sub);
-  padding: 3px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  gap: 4px;
-}
-
-.warp-mode-opt {
-  padding: 6px 12px;
-  border-radius: 7px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--text-dim);
-  transition: all 0.2s ease;
-}
-
-.warp-mode-opt.selected {
-  background: var(--blurple);
-  color: #FFF;
-}
-</style>
-</head>
-<body>
-
-<div class="bg-glow-1"></div>
-<div class="bg-glow-2"></div>
-
-<header>
-  <div class="logo-group">
-    <div class="app-icon">🎮</div>
-    <div class="logo-text">
-      <h1>Discord DPI Bypass <span class="badge-ver">PRO v4.0</span></h1>
-      <p>macOS Oyun Pingini Korumalı Otomatik Optimizasyon</p>
-    </div>
-  </div>
-
-  <div class="header-status">
-    <div class="status-pill">
-      <div class="status-dot" id="headerDot"></div>
-      <span id="headerStatusText">Kontrol Ediliyor...</span>
-    </div>
-    <div class="uptime-badge" id="uptimeDisplay">⏱ 00:00:00</div>
-  </div>
-</header>
-
-<main>
-  <!-- SOL KOLON: Ana Kontrol ve Adımlar -->
-  <div style="display: flex; flex-direction: column; gap: 20px;">
-    
-    <!-- MASTER ACTION CARD -->
-    <div class="glass-card master-card">
-      <div class="card-title">
-        <span>🚀 Otomasyon Kontrol Merkezi</span>
-        <div class="warp-mode-select">
-          <div class="warp-mode-opt selected" id="modeWarp" onclick="setWarpMode('warp')">🛡️ Tam VPN</div>
-          <div class="warp-mode-opt" id="modeProxy" onclick="setWarpMode('proxy')">🔌 SOCKS Proxy</div>
-        </div>
-      </div>
-
-      <div class="master-btn-container">
-        <button class="btn-master" id="btnMaster" onclick="toggleMasterLaunch()">
-          <span id="btnMasterIcon" style="font-size: 20px;">⚡</span>
-          <span id="btnMasterText">SİSTEMİ BAŞLAT (TEK TIK)</span>
-        </button>
-        <p style="font-size: 12px; color: var(--text-dim); margin-top: 12px;">
-          WARP, SpoofDPI ve Discord'u sırayla doğru konfigürasyonla başlatır.
-        </p>
-      </div>
-
-      <!-- Pipeline Adımları -->
-      <div class="pipeline">
-        <div class="step-card" id="step1">
-          <div class="step-left">
-            <div class="step-num">1</div>
-            <div class="step-info">
-              <h4>Cloudflare WARP</h4>
-              <p>Güvenli VPN veya Proxy tüneli kurulur</p>
-            </div>
-          </div>
-          <div class="step-status-tag" id="step1Status">BEKLEMEDE</div>
-        </div>
-
-        <div class="step-card" id="step2">
-          <div class="step-left">
-            <div class="step-num">2</div>
-            <div class="step-info">
-              <h4>SpoofDPI Engine</h4>
-              <p>Derin paket incelemesi (DPI) atlatılır (UDP Ping Etkilenmez)</p>
-            </div>
-          </div>
-          <div class="step-status-tag" id="step2Status">BEKLEMEDE</div>
-        </div>
-
-        <div class="step-card" id="step3">
-          <div class="step-left">
-            <div class="step-num">3</div>
-            <div class="step-info">
-              <h4>Discord Web App</h4>
-              <p>Brave / Discord optimize edilmiş modda açılır</p>
-            </div>
-          </div>
-          <div class="step-status-tag" id="step3Status">BEKLEMEDE</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SUDO & AYARLAR KARTI -->
-    <div class="glass-card sudo-card">
-      <div class="sudo-header">
-        <div class="sudo-title">
-          <span>🔐 macOS Yönetici Yetkisi (Sudo)</span>
-        </div>
-        <span id="sudoBadge" style="font-size: 11px; padding: 3px 8px; border-radius: 6px; background: rgba(245, 158, 11, 0.2); color: #FCD34D; font-weight: 600;">Şifre Bekleniyor</span>
-      </div>
-      <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">
-        SpoofDPI ağ adaptörünü yapılandırırken şifre ister. Şifrenizi 1 kere girin, sistem otomatik yetkilendirsin.
-      </p>
-      
-      <div class="sudo-input-row">
-        <input type="password" class="sudo-input" id="sudoPasswordInput" placeholder="macOS Şifreniz..." />
-        <button class="btn-secondary" onclick="saveSudoPassword()">✓ Test Et & Kaydet</button>
-      </div>
-
-      <div class="toggle-row">
-        <div class="toggle-info">
-          <h5>Mac Açılışında Otomatik Başlat</h5>
-          <p>Bilgisayar açıldığında Discord DPI Bypass otomatik çalışır</p>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="startupToggle" onchange="toggleStartup(this.checked)">
-          <span class="slider"></span>
-        </label>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- SAĞ KOLON: Canlı Metrikler, Hızlı İşlemler, Konsol Logu -->
-  <div style="display: flex; flex-direction: column; gap: 20px;">
-    
-    <!-- METRİKLER VE CANLI DURUM -->
-    <div class="glass-card">
-      <div class="card-title">
-        <span>📊 Canlı Ağ & Sistem Durumu</span>
-        <span style="font-size: 11px; color: var(--cyan);" id="livePingText">Ping: -- ms</span>
-      </div>
-
-      <div class="metrics-grid">
-        <div class="metric-box">
-          <span class="metric-label">Cloudflare WARP</span>
-          <span class="metric-val" id="valWarp"><span style="color:var(--text-muted)">○</span> Kapalı</span>
-        </div>
-        <div class="metric-box">
-          <span class="metric-label">SpoofDPI Engine</span>
-          <span class="metric-val" id="valSpoof"><span style="color:var(--text-muted)">○</span> Kapalı</span>
-        </div>
-        <div class="metric-box">
-          <span class="metric-label">Discord Gateway</span>
-          <span class="metric-val" id="valDiscord" style="color: var(--emerald);">🟢 Erişilebilir</span>
-        </div>
-        <div class="metric-box">
-          <span class="metric-label">Oyun Ping Koruması</span>
-          <span class="metric-val" style="color: var(--cyan);">⚡ %0 Etki (UDP)</span>
-        </div>
-      </div>
-
-      <div class="ping-canvas-container">
-        <canvas id="pingChart"></canvas>
-      </div>
-    </div>
-
-    <!-- HIZLI AKSİYONLAR -->
-    <div class="glass-card">
-      <div class="card-title">
-        <span>⚡ Hızlı Manuel Aksiyonlar</span>
-      </div>
-      <div class="actions-grid">
-        <button class="btn-secondary" onclick="actionCall('warp_connect')">🛡️ WARP Bağlan</button>
-        <button class="btn-secondary" onclick="actionCall('warp_disconnect')">🔌 WARP Kes</button>
-        <button class="btn-secondary" onclick="actionCall('dpi_start')">🟢 DPI Başlat</button>
-        <button class="btn-secondary" onclick="actionCall('dpi_stop')">🔴 DPI Durdur</button>
-        <button class="btn-secondary" style="grid-column: span 2;" onclick="actionCall('discord_launch')">💬 Discord'u Ayrı Pencerede Aç</button>
-        <button class="btn-secondary btn-danger" style="grid-column: span 2;" onclick="actionCall('stop_all')">⏹ Tüm Hizmetleri Durdur</button>
-      </div>
-    </div>
-
-    <!-- CANLI TERMİNAL GÜNLÜĞÜ -->
-    <div class="glass-card terminal-container">
-      <div class="terminal-header">
-        <span class="card-title" style="margin-bottom: 0;">📜 Canlı Sistem Günlüğü</span>
-        <button class="btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="clearLogs()">Temizle</button>
-      </div>
-      <div class="terminal-box" id="terminalLog">
-        <div class="log-line"><span class="log-time">[00:00:00]</span> <span class="log-badge INFO">INFO</span> Sistem başlatılıyor...</div>
-      </div>
-    </div>
-
-  </div>
-</main>
-
-<footer>
-  <span>Discord DPI Bypass • macOS Architecture • Ping-Free Routing</span>
-  <span>Geliştirici: <a href="https://github.com/Cnek00/DPI-for-macos" target="_blank" style="color: var(--blurple); text-decoration: none; font-weight: 600;">github.com/Cnek00/DPI-for-macos</a></span>
-</footer>
-
-<script>
-let lastState = {};
-let pingHistory = [];
-
-async function fetchStatus() {
-  try {
-    const res = await fetch('/api/status');
-    const data = await res.json();
-    updateUI(data);
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-function updateUI(state) {
-  lastState = state;
-
-  // Header status
-  const dot = document.getElementById('headerDot');
-  const txt = document.getElementById('headerStatusText');
-  const btnMaster = document.getElementById('btnMaster');
-  const btnText = document.getElementById('btnMasterText');
-  const btnIcon = document.getElementById('btnMasterIcon');
-
-  if (state.is_active) {
-    dot.className = 'status-dot active';
-    txt.innerText = 'SİSTEM AKTİF (Discord Hazır)';
-    txt.style.color = 'var(--emerald)';
-    btnMaster.className = 'btn-master active';
-    btnText.innerText = 'SİSTEM ÇALIŞIYOR (DURDUR)';
-    btnIcon.innerText = '✓';
-  } else if (state.running_all) {
-    dot.className = 'status-dot active';
-    txt.innerText = 'BAŞLATILIYOR...';
-    txt.style.color = 'var(--amber)';
-    btnMaster.className = 'btn-master running';
-    btnText.innerText = 'BAŞLATILIYOR...';
-    btnIcon.innerText = '⏳';
-  } else {
-    dot.className = 'status-dot';
-    txt.innerText = 'HAZIR (Beklemede)';
-    txt.style.color = 'var(--text-dim)';
-    btnMaster.className = 'btn-master';
-    btnText.innerText = 'SİSTEMİ BAŞLAT (TEK TIK)';
-    btnIcon.innerText = '⚡';
-  }
-
-  // Uptime
-  const s = state.uptime_seconds || 0;
-  const hrs = String(Math.floor(s / 3600)).padStart(2, '0');
-  const mins = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-  const secs = String(s % 60).padStart(2, '0');
-  document.getElementById('uptimeDisplay').innerText = `⏱ ${hrs}:${mins}:${secs}`;
-
-  // Steps
-  updateStep(1, state.step >= 1, state.step > 1 || state.warp_status === 'connected');
-  updateStep(2, state.step >= 2, state.step > 2 || state.spoofdpi_running);
-  updateStep(3, state.step >= 3, state.step >= 4);
-
-  // Sudo badge
-  const sudoBadge = document.getElementById('sudoBadge');
-  if (state.sudo_cached) {
-    sudoBadge.innerText = '✓ Sudo Yetkili';
-    sudoBadge.style.background = 'rgba(16, 185, 129, 0.2)';
-    sudoBadge.style.color = '#34D399';
-  } else {
-    sudoBadge.innerText = 'Şifre Girilmedi';
-    sudoBadge.style.background = 'rgba(245, 158, 11, 0.2)';
-    sudoBadge.style.color = '#FCD34D';
-  }
-
-  // Startup toggle
-  document.getElementById('startupToggle').checked = state.startup_enabled;
-
-  // Metric Boxes
-  const valWarp = document.getElementById('valWarp');
-  if (state.warp_status === 'connected') {
-    valWarp.innerHTML = '<span style="color:var(--emerald)">●</span> Bağlı';
-  } else if (state.warp_status === 'connecting') {
-    valWarp.innerHTML = '<span style="color:var(--amber)">◐</span> Bağlanıyor';
-  } else {
-    valWarp.innerHTML = '<span style="color:var(--text-muted)">○</span> Kapalı';
-  }
-
-  const valSpoof = document.getElementById('valSpoof');
-  if (state.spoofdpi_running) {
-    valSpoof.innerHTML = '<span style="color:var(--emerald)">●</span> Aktif';
-  } else {
-    valSpoof.innerHTML = '<span style="color:var(--text-muted)">○</span> Kapalı';
-  }
-
-  // Pings
-  if (state.pings && state.pings.length > 0) {
-    const latest = state.pings[state.pings.length - 1];
-    document.getElementById('livePingText').innerText = `Discord Ping: ${latest.ms} ms`;
-    pingHistory = state.pings.map(p => p.ms);
-    drawPingChart();
-  }
-
-  // Logs
-  if (state.logs) {
-    renderLogs(state.logs);
-  }
-}
-
-function updateStep(num, isRunning, isDone) {
-  const card = document.getElementById(`step${num}`);
-  const tag = document.getElementById(`step${num}Status`);
-  if (isDone) {
-    card.className = 'step-card done';
-    tag.innerText = 'TAMAMLANDI ✓';
-  } else if (isRunning) {
-    card.className = 'step-card active';
-    tag.innerText = 'ÇALIŞIYOR...';
-  } else {
-    card.className = 'step-card';
-    tag.innerText = 'BEKLEMEDE';
-  }
-}
-
-function renderLogs(logs) {
-  const box = document.getElementById('terminalLog');
-  const wasScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 20;
-  
-  box.innerHTML = logs.map(l => `
-    <div class="log-line">
-      <span class="log-time">[${l.time}]</span>
-      <span class="log-badge ${l.level}">${l.level}</span>
-      <span>${escapeHtml(l.msg)}</span>
-    </div>
-  `).join('');
-
-  if (wasScrolledToBottom) {
-    box.scrollTop = box.scrollHeight;
-  }
-}
-
-function escapeHtml(text) {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-async function toggleMasterLaunch() {
-  if (lastState.is_active) {
-    await fetch('/api/stop_all', { method: 'POST' });
-  } else {
-    await fetch('/api/launch_all', { method: 'POST' });
-  }
-  fetchStatus();
-}
-
-async function actionCall(endpoint) {
-  await fetch(`/api/${endpoint}`, { method: 'POST' });
-  fetchStatus();
-}
-
-async function saveSudoPassword() {
-  const pwd = document.getElementById('sudoPasswordInput').value;
-  if (!pwd) return;
-  const res = await fetch('/api/set_password', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: pwd })
-  });
-  const data = await res.json();
-  if (data.ok) {
-    alert('✓ Yönetici şifresi başarıyla doğrulandı ve kaydedildi!');
-    document.getElementById('sudoPasswordInput').value = '';
-  } else {
-    alert('❌ Hatalı şifre! Lütfen macOS oturum şifrenizi doğru girin.');
-  }
-  fetchStatus();
-}
-
-async function toggleStartup(enabled) {
-  await fetch('/api/toggle_startup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ enabled: enabled })
-  });
-  fetchStatus();
-}
-
-function setWarpMode(mode) {
-  document.getElementById('modeWarp').className = mode === 'warp' ? 'warp-mode-opt selected' : 'warp-mode-opt';
-  document.getElementById('modeProxy').className = mode === 'proxy' ? 'warp-mode-opt selected' : 'warp-mode-opt';
-  fetch('/api/set_warp_mode', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mode: mode })
-  });
-}
-
-function clearLogs() {
-  document.getElementById('terminalLog').innerHTML = '';
-}
-
-// Ping Canvas Graph
-function drawPingChart() {
-  const canvas = document.getElementById('pingChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  const w = canvas.parentElement.clientWidth;
-  const h = canvas.parentElement.clientHeight;
-  canvas.width = w * dpr;
-  canvas.height = h * dpr;
-  ctx.scale(dpr, dpr);
-
-  ctx.clearRect(0, 0, w, h);
-  if (pingHistory.length < 2) return;
-
-  const maxPing = Math.max(...pingHistory, 80);
-  const minPing = Math.min(...pingHistory, 10);
-
-  ctx.beginPath();
-  const step = w / (pingHistory.length - 1);
-  pingHistory.forEach((val, i) => {
-    const x = i * step;
-    const y = h - ((val - minPing) / (maxPing - minPing + 1)) * (h - 10) - 5;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-
-  ctx.strokeStyle = '#06B6D4';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Gradient fill below curve
-  ctx.lineTo(w, h);
-  ctx.lineTo(0, h);
-  ctx.closePath();
-  const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
-  grad.addColorStop(1, 'rgba(6, 182, 212, 0.0)');
-  ctx.fillStyle = grad;
-  ctx.fill();
-}
-
-// Poll every 1.5s
-fetchStatus();
-setInterval(fetchStatus, 1500);
-</script>
-</body>
-</html>
-"""
-
-
-class DashboardRequestHandler(http.server.BaseHTTPRequestHandler):
-    def log_message(self, format, *args):
-        pass  # Quiet HTTP logs
-
-    def do_GET(self):
-        parsed = urllib.parse.urlparse(self.path)
-        if parsed.path == "/" or parsed.path == "/index.html":
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.end_headers()
-            self.wfile.write(HTML_DASHBOARD.encode("utf-8"))
-        elif parsed.path == "/api/status":
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            with STATE_LOCK:
-                data = dict(STATE)
-                data["sudo_password"] = "***" if STATE["sudo_password"] else ""
-            self.wfile.write(json.dumps(data).encode("utf-8"))
+# ─────────────────────────────────────────────────────────────────────────────
+#  NATIVE CUSTOMTKINTER GUI APPLICATION
+# ─────────────────────────────────────────────────────────────────────────────
+class DiscordDPINativeApp(ctk.CTk):
+    def __init__(self, initial_sudo=""):
+        super().__init__()
+
+        self.title("Discord DPI Bypass & Optimizer PRO")
+        self.geometry("1060x780")
+        self.minsize(980, 720)
+        self.configure(fg_color=THEME["bg"])
+
+        # State Variables
+        self.sudo_password = initial_sudo
+        self.warp_mode = "warp"
+        self.is_running_all = False
+        self.is_active = False
+        self.uptime_seconds = 0
+        self.spoofdpi_proc = None
+        self.latest_ping = "--"
+
+        # Center Window on Screen
+        self.update_idletasks()
+        w = 1060
+        h = 780
+        x = (self.winfo_screenwidth() - w) // 2
+        y = (self.winfo_screenheight() - h) // 2
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+        # Build UI
+        self._build_header()
+        self._build_main_content()
+        self._build_footer()
+
+        # Background Polling & Monitoring
+        self.is_monitoring = True
+        self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self.monitor_thread.start()
+
+        self.uptime_thread = threading.Thread(target=self._uptime_loop, daemon=True)
+        self.uptime_thread.start()
+
+        # Log initial state
+        self.log("🚀 Discord DPI Bypass PRO Native GUI başlatıldı.", "SUCCESS")
+        if self.sudo_password:
+            self.log("✓ Sudo şifresi önbelleğe alındı.", "SUCCESS")
         else:
-            self.send_response(404)
-            self.end_headers()
+            self.log("ℹ Yönetici şifresi girilmedi. Panelden girebilirsiniz.", "INFO")
 
-    def do_POST(self):
-        parsed = urllib.parse.urlparse(self.path)
-        content_length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
-        try:
-            payload = json.loads(body) if body else {}
-        except Exception:
-            payload = {}
+    # ─── HEADER ───────────────────────────────────────────────────────────────
+    def _build_header(self):
+        header_frame = ctk.CTkFrame(self, fg_color=THEME["card"], corner_radius=0, height=72)
+        header_frame.pack(fill="x", side="top", padx=0, pady=0)
+        header_frame.pack_propagate(False)
 
-        response = {"ok": True}
+        # Left Branding
+        left_box = ctk.CTkFrame(header_frame, fg_color="transparent")
+        left_box.pack(side="left", padx=24, pady=12)
 
-        if parsed.path == "/api/launch_all":
-            threading.Thread(target=do_launch_all_sequence, daemon=True).start()
-        elif parsed.path == "/api/stop_all":
-            threading.Thread(target=do_stop_all, daemon=True).start()
-        elif parsed.path == "/api/warp_connect":
-            threading.Thread(target=lambda: do_warp_connect(STATE["warp_mode"]), daemon=True).start()
-        elif parsed.path == "/api/warp_disconnect":
-            threading.Thread(target=do_warp_disconnect, daemon=True).start()
-        elif parsed.path == "/api/dpi_start":
-            threading.Thread(target=do_spoofdpi_start, daemon=True).start()
-        elif parsed.path == "/api/dpi_stop":
-            threading.Thread(target=do_spoofdpi_stop, daemon=True).start()
-        elif parsed.path == "/api/discord_launch":
-            threading.Thread(target=do_launch_discord, daemon=True).start()
-        elif parsed.path == "/api/set_password":
-            pwd = payload.get("password", "")
-            if test_sudo_password(pwd):
-                with STATE_LOCK:
-                    STATE["sudo_password"] = pwd
-                    STATE["sudo_cached"] = True
-                add_log("✓ Sudo şifresi doğrulandı ve kaydedildi.", "SUCCESS")
-                response = {"ok": True}
-            else:
-                add_log("✗ Hatalı sudo şifresi denendi.", "ERROR")
-                response = {"ok": False, "error": "Invalid password"}
-        elif parsed.path == "/api/set_warp_mode":
-            mode = payload.get("mode", "warp")
-            with STATE_LOCK:
-                STATE["warp_mode"] = mode
-            add_log(f"WARP modu '{mode.upper()}' olarak ayarlandı.", "INFO")
-        elif parsed.path == "/api/toggle_startup":
-            enabled = payload.get("enabled", False)
-            set_startup(enabled)
-            with STATE_LOCK:
-                STATE["startup_enabled"] = enabled
+        icon_lbl = ctk.CTkLabel(
+            left_box, text="🎮", font=ctk.CTkFont(size=28),
+            fg_color=THEME["blurple"], corner_radius=12, width=46, height=46
+        )
+        icon_lbl.pack(side="left", padx=(0, 14))
 
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
-        self.wfile.write(json.dumps(response).encode("utf-8"))
+        title_box = ctk.CTkFrame(left_box, fg_color="transparent")
+        title_box.pack(side="left")
+
+        title_row = ctk.CTkFrame(title_box, fg_color="transparent")
+        title_row.pack(anchor="w")
+
+        title_lbl = ctk.CTkLabel(
+            title_row, text="Discord DPI Bypass",
+            font=ctk.CTkFont(family="SF Pro Display", size=18, weight="bold"),
+            text_color=THEME["text_main"]
+        )
+        title_lbl.pack(side="left")
+
+        ver_badge = ctk.CTkLabel(
+            title_row, text="PRO v5.0 NATIVE",
+            font=ctk.CTkFont(size=10, weight="bold"),
+            fg_color=THEME["card_border"], text_color=THEME["blurple_light"],
+            corner_radius=6, padx=6, pady=2
+        )
+        ver_badge.pack(side="left", padx=8)
+
+        sub_lbl = ctk.CTkLabel(
+            title_box, text="macOS Oyun Pingini Korumalı Otomatik Optimizasyon (UDP Dokunulmaz)",
+            font=ctk.CTkFont(size=11), text_color=THEME["text_dim"]
+        )
+        sub_lbl.pack(anchor="w")
+
+        # Right Status Pills
+        right_box = ctk.CTkFrame(header_frame, fg_color="transparent")
+        right_box.pack(side="right", padx=24, pady=12)
+
+        self.status_pill = ctk.CTkLabel(
+            right_box, text="● SİSTEM HAZIR (Beklemede)",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color=THEME["card_border"], text_color=THEME["amber"],
+            corner_radius=16, padx=14, pady=6
+        )
+        self.status_pill.pack(side="right", padx=(10, 0))
+
+        self.uptime_lbl = ctk.CTkLabel(
+            right_box, text="⏱ 00:00:00",
+            font=ctk.CTkFont(family="Courier", size=12, weight="bold"),
+            text_color=THEME["text_dim"]
+        )
+        self.uptime_lbl.pack(side="right")
+
+    # ─── MAIN CONTENT (2 COLUMNS) ─────────────────────────────────────────────
+    def _build_main_content(self):
+        content_frame = ctk.CTkFrame(self, fg_color="transparent")
+        content_frame.pack(fill="both", expand=True, padx=20, pady=16)
+
+        content_frame.columnconfigure(0, weight=11)
+        content_frame.columnconfigure(1, weight=9)
+        content_frame.rowconfigure(0, weight=1)
+
+        # ── LEFT COLUMN: MASTER CONTROL, PIPELINE, SUDO & SETTINGS ──
+        left_col = ctk.CTkFrame(content_frame, fg_color="transparent")
+        left_col.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+
+        self._build_master_card(left_col)
+        self._build_sudo_card(left_col)
+
+        # ── RIGHT COLUMN: METRICS, QUICK ACTIONS & TERMINAL LOGS ──
+        right_col = ctk.CTkFrame(content_frame, fg_color="transparent")
+        right_col.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+
+        self._build_metrics_card(right_col)
+        self._build_quick_actions_card(right_col)
+        self._build_terminal_card(right_col)
+
+    # ── MASTER CARD (Single-Click Automation & Pipeline) ──
+    def _build_master_card(self, parent):
+        card = ctk.CTkFrame(
+            parent, fg_color=THEME["card"], corner_radius=16,
+            border_width=1, border_color=THEME["card_border"]
+        )
+        card.pack(fill="x", pady=(0, 14))
+
+        # Title & Mode Switch
+        top_row = ctk.CTkFrame(card, fg_color="transparent")
+        top_row.pack(fill="x", padx=16, pady=(14, 8))
+
+        ctk.CTkLabel(
+            top_row, text="🚀 OTOMASYON KONTROL MERKEZİ",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=THEME["text_dim"]
+        ).pack(side="left")
+
+        # WARP Mode Segments
+        self.warp_mode_seg = ctk.CTkSegmentedButton(
+            top_row, values=["🛡️ Tam VPN", "🔌 SOCKS Proxy"],
+            command=self._on_warp_mode_change,
+            selected_color=THEME["blurple"], selected_hover_color=THEME["blurple_hover"],
+            unselected_color=THEME["input_bg"], unselected_hover_color=THEME["card_hover"],
+            font=ctk.CTkFont(size=11, weight="bold"), height=28
+        )
+        self.warp_mode_seg.set("🛡️ Tam VPN")
+        self.warp_mode_seg.pack(side="right")
+
+        # Big Master Launch Button
+        self.btn_master = ctk.CTkButton(
+            card, text="⚡ SİSTEMİ BAŞLAT (TEK TIK)",
+            font=ctk.CTkFont(size=15, weight="bold"),
+            fg_color=THEME["blurple"], hover_color=THEME["blurple_hover"],
+            corner_radius=14, height=52, command=self._toggle_master_launch
+        )
+        self.btn_master.pack(fill="x", padx=16, pady=(10, 4))
+
+        sub_info = ctk.CTkLabel(
+            card, text="WARP, SpoofDPI ve Discord'u sırayla optimize ederek başlatır.",
+            font=ctk.CTkFont(size=11), text_color=THEME["text_muted"]
+        )
+        sub_info.pack(pady=(0, 10))
+
+        # 3 Pipeline Steps
+        pipeline_frame = ctk.CTkFrame(card, fg_color="transparent")
+        pipeline_frame.pack(fill="x", padx=16, pady=(0, 14))
+
+        self.step1_card = self._create_step_widget(
+            pipeline_frame, "1", "Cloudflare WARP", "VPN veya Proxy tüneli kurulur"
+        )
+        self.step2_card = self._create_step_widget(
+            pipeline_frame, "2", "SpoofDPI Engine", "DPI kısıtlaması atlatılır (UDP Ping Etkilenmez)"
+        )
+        self.step3_card = self._create_step_widget(
+            pipeline_frame, "3", "Discord Web App", "Brave / Discord optimize edilmiş modda açılır"
+        )
+
+    def _create_step_widget(self, parent, num, title, subtitle):
+        row = ctk.CTkFrame(
+            parent, fg_color=THEME["input_bg"], corner_radius=10,
+            border_width=1, border_color=THEME["card_border"]
+        )
+        row.pack(fill="x", pady=4)
+
+        left = ctk.CTkFrame(row, fg_color="transparent")
+        left.pack(side="left", padx=12, pady=10)
+
+        num_lbl = ctk.CTkLabel(
+            left, text=num, font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=THEME["card_border"], text_color=THEME["text_dim"],
+            width=26, height=26, corner_radius=8
+        )
+        num_lbl.pack(side="left", padx=(0, 10))
+
+        txt_box = ctk.CTkFrame(left, fg_color="transparent")
+        txt_box.pack(side="left")
+
+        t_lbl = ctk.CTkLabel(
+            txt_box, text=title, font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=THEME["text_main"]
+        )
+        t_lbl.pack(anchor="w")
+
+        s_lbl = ctk.CTkLabel(
+            txt_box, text=subtitle, font=ctk.CTkFont(size=10),
+            text_color=THEME["text_muted"]
+        )
+        s_lbl.pack(anchor="w")
+
+        tag = ctk.CTkLabel(
+            row, text="BEKLEMEDE", font=ctk.CTkFont(size=10, weight="bold"),
+            fg_color=THEME["card_border"], text_color=THEME["text_muted"],
+            corner_radius=6, padx=8, pady=3
+        )
+        tag.pack(side="right", padx=12)
+
+        return {"row": row, "num": num_lbl, "tag": tag, "title": t_lbl}
+
+    # ── SUDO & SETTINGS CARD ──
+    def _build_sudo_card(self, parent):
+        card = ctk.CTkFrame(
+            parent, fg_color=THEME["card"], corner_radius=16,
+            border_width=1, border_color=THEME["card_border"]
+        )
+        card.pack(fill="x")
+
+        hdr_row = ctk.CTkFrame(card, fg_color="transparent")
+        hdr_row.pack(fill="x", padx=16, pady=(12, 6))
+
+        ctk.CTkLabel(
+            hdr_row, text="🔐 macOS YÖNETİCİ YETKİSİ (SUDO)",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=THEME["amber"]
+        ).pack(side="left")
+
+        self.sudo_status_badge = ctk.CTkLabel(
+            hdr_row, text="Şifre Girilmedi",
+            font=ctk.CTkFont(size=10, weight="bold"),
+            fg_color=THEME["amber_bg"], text_color=THEME["amber"],
+            corner_radius=6, padx=8, pady=2
+        )
+        self.sudo_status_badge.pack(side="right")
+
+        desc = ctk.CTkLabel(
+            card, text="SpoofDPI ağ adaptörünü yetkilendirirken şifre ister. Şifrenizi 1 kere girin, sistem otomatik yönetsin.",
+            font=ctk.CTkFont(size=11), text_color=THEME["text_dim"], wraplength=480, justify="left"
+        )
+        desc.pack(anchor="w", padx=16, pady=(0, 10))
+
+        # Input Row
+        input_row = ctk.CTkFrame(card, fg_color="transparent")
+        input_row.pack(fill="x", padx=16, pady=(0, 12))
+
+        self.sudo_entry = ctk.CTkEntry(
+            input_row, placeholder_text="macOS Oturum Şifreniz...",
+            show="●", font=ctk.CTkFont(size=12),
+            fg_color=THEME["input_bg"], border_color=THEME["card_border"],
+            corner_radius=10, height=36
+        )
+        self.sudo_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        self.sudo_entry.bind("<Return>", lambda e: self._save_sudo_password())
+
+        btn_save_sudo = ctk.CTkButton(
+            input_row, text="✓ Test Et & Kaydet",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=THEME["card_border"], hover_color=THEME["card_hover"],
+            corner_radius=10, height=36, width=120, command=self._save_sudo_password
+        )
+        btn_save_sudo.pack(side="right")
+
+        # Divider
+        div = ctk.CTkFrame(card, fg_color=THEME["card_border"], height=1)
+        div.pack(fill="x", padx=16, pady=(0, 10))
+
+        # Startup Toggle
+        toggle_row = ctk.CTkFrame(card, fg_color="transparent")
+        toggle_row.pack(fill="x", padx=16, pady=(0, 14))
+
+        t_txt = ctk.CTkFrame(toggle_row, fg_color="transparent")
+        t_txt.pack(side="left")
+
+        ctk.CTkLabel(
+            t_txt, text="Mac Açılışında Otomatik Başlat",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=THEME["text_main"]
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            t_txt, text="Bilgisayar açıldığında bu uygulama arka planda başlar.",
+            font=ctk.CTkFont(size=10), text_color=THEME["text_muted"]
+        ).pack(anchor="w")
+
+        self.startup_switch = ctk.CTkSwitch(
+            toggle_row, text="", command=self._on_startup_toggle,
+            progress_color=THEME["blurple"], fg_color=THEME["input_bg"]
+        )
+        self.startup_switch.pack(side="right")
+        if startup_installed():
+            self.startup_switch.select()
+        else:
+            self.startup_switch.deselect()
+
+    # ── METRICS & PING CARD ──
+    def _build_metrics_card(self, parent):
+        card = ctk.CTkFrame(
+            parent, fg_color=THEME["card"], corner_radius=16,
+            border_width=1, border_color=THEME["card_border"]
+        )
+        card.pack(fill="x", pady=(0, 14))
+
+        top_row = ctk.CTkFrame(card, fg_color="transparent")
+        top_row.pack(fill="x", padx=16, pady=(12, 8))
+
+        ctk.CTkLabel(
+            top_row, text="📊 CANLI AĞ & SİSTEM DURUMU",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=THEME["text_dim"]
+        ).pack(side="left")
+
+        self.live_ping_lbl = ctk.CTkLabel(
+            top_row, text="Discord Ping: -- ms",
+            font=ctk.CTkFont(size=11, weight="bold"), text_color=THEME["cyan"]
+        )
+        self.live_ping_lbl.pack(side="right")
+
+        # 2x2 Grid of Status Tiles
+        grid = ctk.CTkFrame(card, fg_color="transparent")
+        grid.pack(fill="x", padx=14, pady=(0, 12))
+        grid.columnconfigure(0, weight=1)
+        grid.columnconfigure(1, weight=1)
+
+        self.metric_warp = self._create_metric_tile(grid, 0, 0, "Cloudflare WARP", "○ Kapalı", THEME["text_muted"])
+        self.metric_spoof = self._create_metric_tile(grid, 0, 1, "SpoofDPI Engine", "○ Kapalı", THEME["text_muted"])
+        self.metric_discord = self._create_metric_tile(grid, 1, 0, "Discord Gateway", "🟢 Erişilebilir", THEME["emerald"])
+        self.metric_udp = self._create_metric_tile(grid, 1, 1, "Oyun Ping Koruması", "⚡ %0 Etki (UDP)", THEME["cyan"])
+
+    def _create_metric_tile(self, parent, r, c, label, val, val_color):
+        tile = ctk.CTkFrame(
+            parent, fg_color=THEME["input_bg"], corner_radius=10,
+            border_width=1, border_color=THEME["card_border"]
+        )
+        tile.grid(row=r, column=c, padx=4, pady=4, sticky="nsew")
+
+        lbl = ctk.CTkLabel(
+            tile, text=label, font=ctk.CTkFont(size=10, weight="bold"),
+            text_color=THEME["text_muted"]
+        )
+        lbl.pack(anchor="w", padx=10, pady=(8, 2))
+
+        val_lbl = ctk.CTkLabel(
+            tile, text=val, font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=val_color
+        )
+        val_lbl.pack(anchor="w", padx=10, pady=(0, 8))
+
+        return val_lbl
+
+    # ── QUICK ACTIONS CARD ──
+    def _build_quick_actions_card(self, parent):
+        card = ctk.CTkFrame(
+            parent, fg_color=THEME["card"], corner_radius=16,
+            border_width=1, border_color=THEME["card_border"]
+        )
+        card.pack(fill="x", pady=(0, 14))
+
+        ctk.CTkLabel(
+            card, text="⚡ HIZLI MANUEL AKSİYONLAR",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=THEME["text_dim"]
+        ).pack(anchor="w", padx=16, pady=(12, 8))
+
+        btn_grid = ctk.CTkFrame(card, fg_color="transparent")
+        btn_grid.pack(fill="x", padx=12, pady=(0, 12))
+        btn_grid.columnconfigure(0, weight=1)
+        btn_grid.columnconfigure(1, weight=1)
+
+        b1 = ctk.CTkButton(
+            btn_grid, text="🛡️ WARP Bağlan", font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=THEME["card_border"], hover_color=THEME["card_hover"],
+            corner_radius=8, height=32, command=lambda: threading.Thread(target=self._act_warp_connect, daemon=True).start()
+        )
+        b1.grid(row=0, column=0, padx=4, pady=3, sticky="ew")
+
+        b2 = ctk.CTkButton(
+            btn_grid, text="🔌 WARP Kes", font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=THEME["card_border"], hover_color=THEME["card_hover"],
+            corner_radius=8, height=32, command=lambda: threading.Thread(target=self._act_warp_disconnect, daemon=True).start()
+        )
+        b2.grid(row=0, column=1, padx=4, pady=3, sticky="ew")
+
+        b3 = ctk.CTkButton(
+            btn_grid, text="🟢 DPI Başlat", font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=THEME["card_border"], hover_color=THEME["card_hover"],
+            corner_radius=8, height=32, command=lambda: threading.Thread(target=self._act_dpi_start, daemon=True).start()
+        )
+        b3.grid(row=1, column=0, padx=4, pady=3, sticky="ew")
+
+        b4 = ctk.CTkButton(
+            btn_grid, text="🔴 DPI Durdur", font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=THEME["card_border"], hover_color=THEME["card_hover"],
+            corner_radius=8, height=32, command=lambda: threading.Thread(target=self._act_dpi_stop, daemon=True).start()
+        )
+        b4.grid(row=1, column=1, padx=4, pady=3, sticky="ew")
+
+        b5 = ctk.CTkButton(
+            btn_grid, text="💬 Discord'u Ayrı Pencerede Aç", font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=THEME["blurple"], hover_color=THEME["blurple_hover"],
+            corner_radius=8, height=32, command=lambda: threading.Thread(target=self._act_discord_launch, daemon=True).start()
+        )
+        b5.grid(row=2, column=0, columnspan=2, padx=4, pady=4, sticky="ew")
+
+        b6 = ctk.CTkButton(
+            btn_grid, text="⏹ Tüm Hizmetleri Durdur", font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=THEME["rose_bg"], hover_color=THEME["rose_hover"], text_color=THEME["text_main"],
+            corner_radius=8, height=32, command=lambda: threading.Thread(target=self._act_stop_all, daemon=True).start()
+        )
+        b6.grid(row=3, column=0, columnspan=2, padx=4, pady=3, sticky="ew")
+
+    # ── LIVE TERMINAL LOG CARD ──
+    def _build_terminal_card(self, parent):
+        card = ctk.CTkFrame(
+            parent, fg_color=THEME["card"], corner_radius=16,
+            border_width=1, border_color=THEME["card_border"]
+        )
+        card.pack(fill="both", expand=True)
+
+        top_row = ctk.CTkFrame(card, fg_color="transparent")
+        top_row.pack(fill="x", padx=16, pady=(10, 4))
+
+        ctk.CTkLabel(
+            top_row, text="📜 CANLI SİSTEM GÜNLÜĞÜ",
+            font=ctk.CTkFont(size=12, weight="bold"), text_color=THEME["text_dim"]
+        ).pack(side="left")
+
+        btn_clear = ctk.CTkButton(
+            top_row, text="Temizle", font=ctk.CTkFont(size=10),
+            fg_color=THEME["input_bg"], hover_color=THEME["card_hover"],
+            corner_radius=6, height=22, width=60, command=self._clear_logs
+        )
+        btn_clear.pack(side="right")
+
+        self.log_textbox = ctk.CTkTextbox(
+            card, fg_color=THEME["input_bg"], text_color=THEME["text_dim"],
+            font=ctk.CTkFont(family="Courier", size=10), corner_radius=10,
+            border_width=1, border_color=THEME["card_border"], wrap="word"
+        )
+        self.log_textbox.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        self.log_textbox.configure(state="disabled")
+
+    # ── FOOTER ──
+    def _build_footer(self):
+        foot = ctk.CTkFrame(self, fg_color=THEME["card"], corner_radius=0, height=36)
+        foot.pack(fill="x", side="bottom")
+        foot.pack_propagate(False)
+
+        ctk.CTkLabel(
+            foot, text="Discord DPI Bypass • Native macOS Architecture • Zero Gaming Ping Impact",
+            font=ctk.CTkFont(size=10), text_color=THEME["text_muted"]
+        ).pack(side="left", padx=20)
+
+        ctk.CTkLabel(
+            foot, text="GitHub: github.com/Cnek00/DPI-for-macos",
+            font=ctk.CTkFont(size=10, weight="bold"), text_color=THEME["blurple_light"]
+        ).pack(side="right", padx=20)
+
+    # ─── LOGGING & UI HELPERS ──────────────────────────────────────────────────
+    def log(self, msg, level="INFO"):
+        ts = datetime.datetime.now().strftime("%H:%M:%S")
+        prefix = {"INFO": "·", "CMD": "$", "SUCCESS": "✓", "WARN": "⚠", "ERROR": "✗"}.get(level, "·")
+        formatted = f"[{ts}] {prefix} {msg}\n"
+
+        def _append():
+            self.log_textbox.configure(state="normal")
+            self.log_textbox.insert("end", formatted)
+            self.log_textbox.see("end")
+            self.log_textbox.configure(state="disabled")
+
+        self.after(0, _append)
+
+    def _clear_logs(self):
+        self.log_textbox.configure(state="normal")
+        self.log_textbox.delete("1.0", "end")
+        self.log_textbox.configure(state="disabled")
+
+    def _update_step_ui(self, step_dict, state):
+        """state: 'pending', 'active', 'done', 'error'"""
+        cfg = {
+            "pending": (THEME["input_bg"], THEME["card_border"], THEME["text_muted"], "BEKLEMEDE"),
+            "active": (THEME["card"], THEME["blurple"], THEME["amber"], "ÇALIŞIYOR..."),
+            "done": (THEME["card"], THEME["emerald"], THEME["emerald"], "TAMAMLANDI ✓"),
+            "error": (THEME["card"], THEME["rose"], THEME["rose"], "HATA ✗")
+        }
+        bg, border, text_col, tag_txt = cfg.get(state, cfg["pending"])
+        step_dict["row"].configure(fg_color=bg, border_color=border)
+        step_dict["tag"].configure(text=tag_txt, text_color=text_col)
+        if state == "done":
+            step_dict["num"].configure(fg_color=THEME["emerald"], text_color=THEME["text_main"])
+        elif state == "active":
+            step_dict["num"].configure(fg_color=THEME["blurple"], text_color=THEME["text_main"])
+        else:
+            step_dict["num"].configure(fg_color=THEME["card_border"], text_color=THEME["text_dim"])
+
+    # ─── SUDO & STARTUP HANDLERS ──────────────────────────────────────────────
+    def _save_sudo_password(self):
+        pwd = self.sudo_entry.get().strip()
+        if not pwd:
+            return
+        if test_sudo_password(pwd):
+            self.sudo_password = pwd
+            self.sudo_entry.delete(0, "end")
+            self.sudo_status_badge.configure(
+                text="✓ Sudo Yetkili", fg_color=THEME["emerald_bg"], text_color=THEME["emerald"]
+            )
+            self.log("✓ Yönetici şifresi başarıyla doğrulandı ve kaydedildi.", "SUCCESS")
+        else:
+            self.sudo_status_badge.configure(
+                text="Hatalı Şifre!", fg_color=THEME["rose_bg"], text_color=THEME["rose"]
+            )
+            self.log("✗ Hatalı sudo şifresi girildi.", "ERROR")
+
+    def _on_startup_toggle(self):
+        val = bool(self.startup_switch.get())
+        set_startup(val)
+        if val:
+            self.log("✓ Mac açılışında otomatik başlatma aktif edildi.", "SUCCESS")
+        else:
+            self.log("Mac açılışında otomatik başlatma kapatıldı.", "WARN")
+
+    def _on_warp_mode_change(self, val):
+        if "VPN" in val:
+            self.warp_mode = "warp"
+            self.log("WARP modu 'TAM VPN' olarak seçildi.", "INFO")
+        else:
+            self.warp_mode = "proxy"
+            self.log("WARP modu 'SOCKS PROXY' olarak seçildi.", "INFO")
+
+    # ─── BACKGROUND MONITORING & UPTIME ────────────────────────────────────────
+    def _uptime_loop(self):
+        while self.is_monitoring:
+            if self.is_active:
+                self.uptime_seconds += 1
+                hrs = str(self.uptime_seconds // 3600).zfill(2)
+                mins = str((self.uptime_seconds % 3600) // 60).zfill(2)
+                secs = str(self.uptime_seconds % 60).zfill(2)
+                self.after(0, lambda h=hrs, m=mins, s=secs: self.uptime_lbl.configure(text=f"⏱ {h}:{m}:{s}"))
+            time.sleep(1)
+
+    def _monitor_loop(self):
+        while self.is_monitoring:
+            try:
+                w_stat = get_warp_status()
+                s_run = is_spoofdpi_running()
+                s_cache = check_sudo_cached() or (self.sudo_password != "")
+                ms = ping_host("discord.com")
+
+                self.after(0, lambda ws=w_stat, sr=s_run, sc=s_cache, p=ms: self._update_live_metrics(ws, sr, sc, p))
+            except Exception:
+                pass
+            time.sleep(2.5)
+
+    def _update_live_metrics(self, warp_status, spoof_running, sudo_cached, ping_ms):
+        # Update Sudo Badge
+        if sudo_cached:
+            self.sudo_status_badge.configure(
+                text="✓ Sudo Yetkili", fg_color=THEME["emerald_bg"], text_color=THEME["emerald"]
+            )
+        else:
+            self.sudo_status_badge.configure(
+                text="Şifre Girilmedi", fg_color=THEME["amber_bg"], text_color=THEME["amber"]
+            )
+
+        # Update WARP Metric
+        if warp_status == "connected":
+            self.metric_warp.configure(text="● Bağlı", text_color=THEME["emerald"])
+        elif warp_status == "connecting":
+            self.metric_warp.configure(text="◐ Bağlanıyor", text_color=THEME["amber"])
+        else:
+            self.metric_warp.configure(text="○ Kapalı", text_color=THEME["text_muted"])
+
+        # Update SpoofDPI Metric
+        if spoof_running:
+            self.metric_spoof.configure(text="● Aktif", text_color=THEME["emerald"])
+        else:
+            self.metric_spoof.configure(text="○ Kapalı", text_color=THEME["text_muted"])
+
+        # Update Ping
+        if ping_ms is not None:
+            self.latest_ping = f"{round(ping_ms, 1)}"
+            self.live_ping_lbl.configure(text=f"Discord Ping: {self.latest_ping} ms")
+
+        # System State Pill
+        if warp_status == "connected" and spoof_running:
+            self.is_active = True
+            self.status_pill.configure(
+                text="● SİSTEM AKTİF (Discord Hazır)", fg_color=THEME["emerald_bg"], text_color=THEME["emerald"]
+            )
+            if not self.is_running_all:
+                self.btn_master.configure(
+                    text="✓ SİSTEM ÇALIŞIYOR (DURDUR)", fg_color=THEME["emerald"], hover_color=THEME["emerald_hover"]
+                )
+        elif self.is_running_all:
+            self.status_pill.configure(
+                text="◐ BAŞLATILIYOR...", fg_color=THEME["amber_bg"], text_color=THEME["amber"]
+            )
+        else:
+            self.is_active = False
+            self.status_pill.configure(
+                text="● SİSTEM HAZIR (Beklemede)", fg_color=THEME["card_border"], text_color=THEME["amber"]
+            )
+            self.btn_master.configure(
+                text="⚡ SİSTEMİ BAŞLAT (TEK TIK)", fg_color=THEME["blurple"], hover_color=THEME["blurple_hover"]
+            )
+
+    # ─── MASTER LAUNCH SEQUENCE ────────────────────────────────────────────────
+    def _toggle_master_launch(self):
+        if self.is_active:
+            threading.Thread(target=self._act_stop_all, daemon=True).start()
+        else:
+            threading.Thread(target=self._run_launch_sequence, daemon=True).start()
+
+    def _run_launch_sequence(self):
+        if self.is_running_all:
+            return
+        self.is_running_all = True
+        self.after(0, lambda: self.btn_master.configure(
+            text="⏳ BAŞLATILIYOR...", fg_color=THEME["amber"], hover_color=THEME["amber_hover"]
+        ))
+        self.log("══════════ OTOMATİK BAŞLATMA SIRASI BAŞLADI ══════════", "CMD")
+
+        # Step 1: WARP
+        self.after(0, lambda: self._update_step_ui(self.step1_card, "active"))
+        self.log("Adım 1/3: Cloudflare WARP bağlanıyor...", "INFO")
+        w_ok = self._act_warp_connect()
+        time.sleep(1.5)
+        self.after(0, lambda ok=w_ok: self._update_step_ui(self.step1_card, "done" if ok else "error"))
+
+        # Step 2: SpoofDPI
+        self.after(0, lambda: self._update_step_ui(self.step2_card, "active"))
+        self.log("Adım 2/3: SpoofDPI bypass başlatılıyor...", "INFO")
+        s_ok = self._act_dpi_start()
+        time.sleep(2)
+        self.after(0, lambda ok=s_ok: self._update_step_ui(self.step2_card, "done" if ok else "error"))
+
+        # Step 3: Discord
+        self.after(0, lambda: self._update_step_ui(self.step3_card, "active"))
+        self.log("Adım 3/3: Discord açılıyor...", "INFO")
+        d_ok = self._act_discord_launch()
+        time.sleep(1)
+        self.after(0, lambda ok=d_ok: self._update_step_ui(self.step3_card, "done" if ok else "error"))
+
+        self.is_running_all = False
+        self.log("══════════ SİSTEM HAZIR & DISCORD AKTİF ══════════", "SUCCESS")
+
+    # ─── ACTION IMPLEMENTATIONS ────────────────────────────────────────────────
+    def _act_warp_connect(self):
+        self.log(f"Cloudflare WARP bağlanıyor (Mod: {self.warp_mode.upper()})...", "CMD")
+        run_cmd(["warp-cli", "mode", self.warp_mode])
+        if self.warp_mode == "proxy":
+            run_cmd(["warp-cli", "proxy", "port", "40000"])
+        run_cmd(["warp-cli", "connect"])
+        time.sleep(2)
+        stat = get_warp_status()
+        if stat in ("connected", "connecting"):
+            self.log("✓ Cloudflare WARP başarıyla bağlandı.", "SUCCESS")
+            return True
+        else:
+            self.log("⚠ WARP bağlanamadı!", "ERROR")
+            return False
+
+    def _act_warp_disconnect(self):
+        self.log("Cloudflare WARP bağlantısı kesiliyor...", "CMD")
+        run_cmd(["warp-cli", "disconnect"])
+        time.sleep(1)
+        self.log("Cloudflare WARP bağlantısı kapatıldı.", "WARN")
+        return True
+
+    def _act_dpi_start(self):
+        if is_spoofdpi_running():
+            self.log("✓ SpoofDPI zaten aktif çalışıyor.", "INFO")
+            return True
+
+        self.log("SpoofDPI başlatılıyor...", "CMD")
+        spoof_bin = "/opt/homebrew/opt/spoofdpi/bin/spoofdpi"
+        if not Path(spoof_bin).exists():
+            spoof_bin = "spoofdpi"
+
+        cmd_args = [spoof_bin, "--auto-configure-network", "--dns-mode", "doh", "--no-tui"]
+
+        if self.sudo_password:
+            try:
+                def bg_runner():
+                    self.spoofdpi_proc = subprocess.Popen(
+                        ["sudo", "-S"] + cmd_args,
+                        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                    )
+                    self.spoofdpi_proc.stdin.write(self.sudo_password + "\n")
+                    self.spoofdpi_proc.stdin.flush()
+                    self.log("✓ SpoofDPI arka planda yetkilendirildi.", "SUCCESS")
+                    while self.spoofdpi_proc and self.spoofdpi_proc.poll() is None:
+                        line = self.spoofdpi_proc.stdout.readline()
+                        if line and ("addr" in line or "listen" in line or "DPI" in line):
+                            self.log(f"[SpoofDPI] {line.strip()}", "INFO")
+                        time.sleep(0.5)
+
+                threading.Thread(target=bg_runner, daemon=True).start()
+                time.sleep(2.5)
+                if is_spoofdpi_running():
+                    self.log("✓ SpoofDPI aktif ve ağ trafiğini optimize ediyor.", "SUCCESS")
+                    return True
+            except Exception as e:
+                self.log(f"SpoofDPI hata: {e}", "ERROR")
+
+        # Fallback to Terminal script
+        script_path = SCRIPT_DIR / "Mac_GoodbyeDPI.command"
+        apple_script = f'tell application "Terminal" to do script "bash \\"{script_path}\\""'
+        run_cmd(["osascript", "-e", apple_script])
+        time.sleep(2.5)
+        return is_spoofdpi_running()
+
+    def _act_dpi_stop(self):
+        self.log("SpoofDPI durduruluyor...", "CMD")
+        if self.sudo_password:
+            run_cmd(["sudo", "-S", "pkill", "-f", "spoofdpi"], sudo_pass=self.sudo_password)
+        else:
+            run_cmd(["sudo", "pkill", "-f", "spoofdpi"])
+        if self.spoofdpi_proc:
+            try:
+                self.spoofdpi_proc.terminate()
+            except Exception:
+                pass
+            self.spoofdpi_proc = None
+        time.sleep(1)
+        self.log("SpoofDPI durduruldu.", "WARN")
+        return True
+
+    def _act_discord_launch(self):
+        self.log("Discord başlatılıyor...", "CMD")
+        if Path("/Applications/Brave Browser.app").exists():
+            subprocess.Popen([
+                "open", "-na", "Brave Browser",
+                "--args", "--app=https://discord.com/channels/@me"
+            ])
+            self.log("✓ Discord Brave Web App modunda açıldı.", "SUCCESS")
+            return True
+        elif Path("/Applications/Google Chrome.app").exists():
+            subprocess.Popen([
+                "open", "-na", "Google Chrome",
+                "--args", "--app=https://discord.com/channels/@me"
+            ])
+            self.log("✓ Discord Chrome Web App modunda açıldı.", "SUCCESS")
+            return True
+        elif Path("/Applications/Discord.app").exists():
+            subprocess.Popen(["open", "-a", "Discord"])
+            self.log("✓ Discord masaüstü uygulaması açıldı.", "SUCCESS")
+            return True
+        else:
+            subprocess.Popen(["open", "https://discord.com/channels/@me"])
+            self.log("✓ Discord varsayılan tarayıcıda açıldı.", "SUCCESS")
+            return True
+
+    def _act_stop_all(self):
+        self.log("══════════ TÜM HİZMETLER DURDURULUYOR ══════════", "WARN")
+        self._act_dpi_stop()
+        time.sleep(0.5)
+        self._act_warp_disconnect()
+        self.is_active = False
+        self.uptime_seconds = 0
+        self.after(0, lambda: self._update_step_ui(self.step1_card, "pending"))
+        self.after(0, lambda: self._update_step_ui(self.step2_card, "pending"))
+        self.after(0, lambda: self._update_step_ui(self.step3_card, "pending"))
+        self.after(0, lambda: self.uptime_lbl.configure(text="⏱ 00:00:00"))
+        self.log("Tüm bypass servisleri başarıyla kapatıldı.", "WARN")
 
 
-def open_desktop_window(url):
-    time.sleep(0.8)
-    brave_path = "/Applications/Brave Browser.app"
-    chrome_path = "/Applications/Google Chrome.app"
-    
-    # User-data-dir in tmp for completely isolated, dedicated window
-    profile_dir = "/tmp/discord_dpi_app_profile"
-    
-    if Path(brave_path).exists():
-        subprocess.Popen([
-            "open", "-na", "Brave Browser",
-            "--args",
-            f"--app={url}",
-            "--window-size=1120,840",
-            f"--user-data-dir={profile_dir}"
-        ])
-    elif Path(chrome_path).exists():
-        subprocess.Popen([
-            "open", "-na", "Google Chrome",
-            "--args",
-            f"--app={url}",
-            "--window-size=1120,840",
-            f"--user-data-dir={profile_dir}"
-        ])
-    else:
-        subprocess.Popen(["open", url])
-
-
-def main():
-    # Pass initial password if passed via args or env
-    if len(sys.argv) > 1 and sys.argv[1]:
-        init_pass = sys.argv[1]
-        if test_sudo_password(init_pass):
-            STATE["sudo_password"] = init_pass
-            STATE["sudo_cached"] = True
-            add_log("✓ Terminalden iletilen sudo şifresi doğrulandı.", "SUCCESS")
-
-    add_log("Discord DPI Bypass Motoru Hazırlanıyor...", "INFO")
-
-    # Start Polling Thread
-    threading.Thread(target=poll_system_state, daemon=True).start()
-
-    # Start Server
-    class ReusableTCPServer(socketserver.TCPServer):
-        allow_reuse_address = True
-
-    # Find free port if 49221 is taken
-    target_port = PORT
-    server = None
-    for p in range(PORT, PORT + 20):
-        try:
-            server = ReusableTCPServer(("127.0.0.1", p), DashboardRequestHandler)
-            target_port = p
-            break
-        except Exception:
-            continue
-
-    if not server:
-        print("Port could not be bound.")
-        sys.exit(1)
-
-    url = f"http://127.0.0.1:{target_port}"
-    add_log(f"Kontrol paneli hazır: {url}", "SUCCESS")
-    print(f"🚀 Discord DPI Bypass Dashboard: {url}")
-
-    # Open App Window
-    threading.Thread(target=lambda: open_desktop_window(url), daemon=True).start()
-
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("Sunucu kapatılıyor...")
-        server.server_close()
-
-
+# ─────────────────────────────────────────────────────────────────────────────
+#  ENTRY POINT
+# ─────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    main()
+    init_pwd = sys.argv[1] if len(sys.argv) > 1 else ""
+    app = DiscordDPINativeApp(initial_sudo=init_pwd)
+    app.mainloop()

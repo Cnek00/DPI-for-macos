@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
-#   🚀 DISCORD DPI BYPASS & OPTIMIZER PRO v4.0 (macOS)
-#   Oyun Pingini Korumalı Otomatik Optimizasyon
+#   🚀 DISCORD DPI BYPASS & OPTIMIZER PRO v5.0 (macOS)
+#   %100 Yerel Python Masaüstü GUI (Native Desktop App)
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,29 +28,32 @@ echo "  ██║  ██║██╔═══╝ ██║    ██╔══�
 echo "  ██████╔╝██║     ██║    ██████╔╝   ██║   ██║     ██║  ██║███████║███████║"
 echo "  ╚═════╝ ╚═╝     ╚═╝    ╚═════╝    ╚═╝   ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝"
 echo -e "${RESET}"
-echo -e "${CYAN}${BOLD}           Discord DPI Bypass • macOS Pro Control Center${RESET}"
-echo -e "${WHITE}           GitHub: https://github.com/Cnek00/DPI-for-macos${RESET}"
+echo -e "${CYAN}${BOLD}        Discord DPI Bypass • macOS Native Control Center v5.0${RESET}"
+echo -e "${WHITE}        GitHub: https://github.com/Cnek00/DPI-for-macos${RESET}"
 echo ""
 echo -e "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 echo ""
 
+# CustomTkinter kontrolü
+if ! python3 -c "import customtkinter" 2>/dev/null; then
+    echo -e "${YELLOW}⟳ Native GUI kütüphanesi (customtkinter) hazırlanıyor...${RESET}"
+    pip3 install customtkinter >/dev/null 2>&1 || python3 -m pip install customtkinter >/dev/null 2>&1
+fi
+
 # Sudo kontrolü ve şifre alımı
 echo -e "${YELLOW}${BOLD}🔐 YÖNETİCİ ŞİFRESİ (SUDO)${RESET}"
-echo -e "${WHITE}SpoofDPI ağ adaptörü bypass yetkisi için şifreniz gerekmektedir.${RESET}"
-echo -e "${WHITE}(Şifrenizi şimdi girebilir veya açılan arayüzden de girebilirsiniz)${RESET}"
+echo -e "${WHITE}SpoofDPI ağ adaptörü yetkilendirmesi için şifreniz istenebilir.${RESET}"
+echo -e "${WHITE}(Şifrenizi şimdi girebilir veya açılan yerel GUI'den de girebilirsiniz)${RESET}"
 echo ""
 
 SUDO_PASS=""
 
-# Sudo önbellekte var mı kontrol et
 if sudo -n true 2>/dev/null; then
     echo -e "${GREEN}✓ Yönetici yetkisi zaten aktif!${RESET}"
 else
-    # Şifreyi iste
     read -s -p "🔑 Lütfen macOS Yönetici Şifrenizi Girin (veya Enter ile atlayın): " SUDO_PASS
     echo ""
     if [ -n "$SUDO_PASS" ]; then
-        # Şifreyi test et
         if echo "$SUDO_PASS" | sudo -S true 2>/dev/null; then
             echo -e "${GREEN}✓ Şifre doğrulandı!${RESET}"
         else
@@ -64,21 +67,20 @@ fi
 
 echo ""
 echo -e "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-echo -e "${GREEN}${BOLD}🚀 Modern Kontrol Paneli Açılıyor...${RESET}"
+echo -e "${GREEN}${BOLD}🚀 Yerel Python GUI Başlatılıyor...${RESET}"
 echo ""
 
-# Python ile Launcher'ı başlat
+# Native GUI'yi başlat
 if [ -f "$LAUNCHER_PY" ]; then
     python3 "$LAUNCHER_PY" "$SUDO_PASS" &
     PID=$!
-    echo -e "${CYAN}✓ Dashboard arka planda başlatıldı (PID: $PID)${RESET}"
-    echo -e "${WHITE}  Pencere birazdan otomatik olarak açılacaktır.${RESET}"
+    echo -e "${CYAN}✓ Masaüstü uygulaması açıldı (PID: $PID)${RESET}"
 else
     echo -e "${RED}✗ $LAUNCHER_PY bulunamadı!${RESET}"
     exit 1
 fi
 
 echo ""
-echo -e "${GREEN}İşlem tamamlandı. Bu terminal penceresi arka planda kalabilir.${RESET}"
+echo -e "${GREEN}İşlem tamamlandı. Bu pencereyi kapatabilir veya arka planda tutabilirsiniz.${RESET}"
 echo ""
 sleep 2
