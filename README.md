@@ -1,122 +1,231 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/macOS-PRO_Glassmorphism_Dashboard-000000?style=for-the-badge&logo=apple&logoColor=white"/>
-<img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white"/>
-<img src="https://img.shields.io/badge/Discord-Bypass_%26_Ping_Shield-5865F2?style=for-the-badge&logo=discord&logoColor=white"/>
-<img src="https://img.shields.io/badge/SpoofDPI-Deep_Packet_Bypass-10B981?style=for-the-badge&logo=shield&logoColor=white"/>
+<img src="https://img.shields.io/badge/macOS-DPI_Bypass-000000?style=for-the-badge&logo=apple&logoColor=white"/>
+<img src="https://img.shields.io/badge/Discord-Access-5865F2?style=for-the-badge&logo=discord&logoColor=white"/>
+<img src="https://img.shields.io/badge/WARP-Cloudflare-10B981?style=for-the-badge&logo=cloudflare&logoColor=white"/>
+<img src="https://img.shields.io/badge/SpoofDPI-Enabled-0EA5E9?style=for-the-badge&logo=shield&logoColor=white"/>
 
-# 🎮 Discord DPI Bypass & Optimizer PRO for macOS
+# DPI for macOS
 
-**macOS için Discord kısıtlamalarını kaldıran, sıfır ek ping ile çalışan, yeni nesil Cyberpunk & Glassmorphism kontrol paneli ve Docker desteği.**
-
-*Oyun içinde (UDP) sıfır ek ping, canlı Discord ping monitörü, 120 FPS GPU hızlandırmalı masaüstü arayüzü ve Docker altyapısı.*
+A macOS automation toolkit for improving Discord access and reducing DPI-related traffic filtering using Cloudflare WARP, SpoofDPI, and a custom launcher dashboard.
 
 </div>
 
 ---
 
-## 🌟 Neler Sunuyor? (PRO v6.0)
+## Overview
 
-- 🎨 **Next-Gen Cyberpunk & Glassmorphism Dashboard**: Discord Blurple, neon zümrüt yeşili ve koyu cam efektleri, ambient ışık orbları ve ses efektleri.
-- ⚡ **Tek Tıkla Akıllı Başlatma**: `Cloudflare WARP → SpoofDPI → Discord Web App` sırasını tek tuşla, hatasız arka planda yönetir.
-- 🔐 **Gelişmiş Sudo / Şifre Yönetimi**: Şifrenizi ister terminalden açılışta 1 kere girin, ister arayüzdeki şifre kartından test edip kaydedin.
-- 🚀 **Mac Açılışında Otomatik Başlat**: Tek anahtarla bilgisayar açıldığında otomatik başlama desteği (`LaunchAgents`).
-- 📊 **Canlı Discord Ping & Ağ Monitörü**: `discord.com` sunucularına olan anlık milisaniye gecikmenizi canlı çizen dinamik Bezier eğrisi grafiği.
-- 📜 **Canlı Terminal Günlüğü**: Arka planda çalışan komutların anlık çıktılarını gösteren renk kodlu konsol kutusu.
-- 🎮 **Oyun Ping Koruması**: CS2, Valorant, LoL vb. oyunların kullandığı UDP paketleri yönlendirilmez, oyun pinginiz kesinlikle artmaz.
-- 🐳 **Docker & Docker Compose Desteği**: İster yerel macOS uygulamasından çalıştırın, ister Docker container üzerinden (`docker compose up -d`).
+This project is built for macOS users who want a practical and streamlined workflow to:
 
----
+- launch Discord through a browser/web-app mode optimized for access
+- connect to Cloudflare WARP
+- start SpoofDPI to help bypass DPI and packet inspection
+- manage the flow from a custom desktop-style dashboard
+- run the full setup locally or with Docker
 
-## 🚀 Başlatma & Kullanım
-
-### 1. Yerel Kontrol Paneli (Önerilen)
-
-Sadece **`Baslat.command`** dosyasına çift tıklayın!
-
-1. Terminal açılır ve SpoofDPI için yönetici şifrenizi ister (ister terminalde girin, ister Enter'a basıp panelden girin).
-2. Modern, animasyonlu kontrol paneli bağımsız bir masaüstü penceresi olarak açılır.
-3. **`⚡ SİSTEMİ BAŞLAT (TEK TIK)`** butonuna tıklayın:
-   - 🛡️ WARP bağlanır
-   - 🟢 SpoofDPI bypass başlatılır
-   - 💬 Discord ultra hızlı Web App modunda açılır
+The tool combines Python automation, shell scripts, and a graphical launcher to provide a simple one-click experience for network optimization and Discord access.
 
 ---
 
-### 2. Docker ile Başlatma
+## Features
 
-Eğer Docker Desktop kullanıyorsanız veya sistemi container içinde çalıştırmak isterseniz:
+- Modern macOS launcher dashboard
+- One-click startup flow: WARP → SpoofDPI → Discord
+- Cloudflare WARP support with VPN or proxy mode
+- SpoofDPI start/stop controls
+- Discord launch support via Brave browser app mode or native app
+- Optional LaunchAgent startup support
+- Docker and Docker Compose support
+- Real-time log output and status monitoring
+- Manual helper scripts for direct control
+
+---
+
+## Project Structure
 
 ```bash
-# Docker Compose ile başlat
-docker compose up -d
+DPI-for-macos/
+├── Baslat.command              # Main launcher script
+├── discord_launcher.py         # Python automation and dashboard logic
+├── Dockerfile                  # Docker image configuration
+├── docker-compose.yml          # Docker Compose setup
+├── docker/
+│   └── entrypoint.sh          # Docker container startup script
+├── docker_start.command        # Docker startup helper
+├── Warp_Ayarlari.command       # WARP configuration helper
+├── Mac_GoodbyeDPI.command      # SpoofDPI startup helper
+├── Discord_Uygulamasi.command  # Discord launch helper
+├── github_push.command         # GitHub upload helper
+├── README.md                   # Project documentation
+├── LICENSE                     # License file (if present)
+└── .gitignore                  # Git ignore rules (if present)
+```
 
-# Veya tek tıkla başlatmak için:
+---
+
+## Requirements
+
+This project targets macOS and assumes the following tools are available:
+
+- macOS
+- Homebrew
+- Cloudflare WARP
+- SpoofDPI
+- Brave Browser (recommended)
+- Docker Desktop (optional)
+
+Install core dependencies with:
+
+```bash
+brew install --cask cloudflare-warp
+brew install spoofdpi
+brew install --cask brave-browser
+```
+
+Confirm Docker is installed if needed:
+
+```bash
+docker --version
+```
+
+---
+
+## Quick Start
+
+### Option 1: Use the desktop launcher
+
+Double-click the launcher script:
+
+```bash
+./Baslat.command
+```
+
+This opens the dashboard and allows you to:
+
+1. connect to WARP
+2. start SpoofDPI
+3. launch Discord in an optimized browser/app mode
+
+---
+
+### Option 2: Use the helper scripts manually
+
+Run the scripts individually:
+
+```bash
+./Warp_Ayarlari.command
+./Mac_GoodbyeDPI.command
+./Discord_Uygulamasi.command
+```
+
+This gives you direct control over each service.
+
+---
+
+### Option 3: Run with Docker
+
+Start the service stack:
+
+```bash
+docker compose up -d
+```
+
+Or use the helper script:
+
+```bash
 ./docker_start.command
 ```
 
-**Konteyner Portları:**
-- **HTTP/HTTPS DPI Proxy**: `http://127.0.0.1:8080`
-- **SOCKS5 Proxy**: `socks5://127.0.0.1:40000`
+Stop the container stack:
 
-Durdurmak için:
 ```bash
 docker compose down
 ```
 
 ---
 
-### 3. Klasik Manuel Komut Dosyaları
+## How It Works
 
-Terminal üzerinden tek tek çalıştırmak isterseniz:
+The workflow is intentionally simple:
 
-```
-1️⃣  Warp_Ayarlari.command     → WARP VPN modunu seç ve bağlan
-2️⃣  Mac_GoodbyeDPI.command    → SpoofDPI DPI atlamasını başlat  
-3️⃣  Discord_Uygulamasi.command → Brave / Tarayıcı üzerinden Discord'u aç
-```
+1. Cloudflare WARP is enabled in either VPN or proxy mode.
+2. SpoofDPI is started to help bypass DPI and packet inspection.
+3. Discord is launched in a browser-based app flow or native app mode.
+4. Status and command output are displayed inside the dashboard for monitoring.
+
+This creates a single environment where the user can launch the required network tools without juggling several commands manually.
 
 ---
 
-## 📋 Gereksinimler
+## Security Notes
+
+- Administrator password is only used temporarily in the sudo flow and is not stored permanently.
+- SpoofDPI is a traffic manipulation tool; use it responsibly and in accordance with local policies and platform rules.
+- Cloudflare WARP is an official service used for routing, DNS, and secure network access.
+
+> This project is intended for local experimentation and network troubleshooting on macOS. Always follow your local environment policies and platform terms.
+
+---
+
+## Troubleshooting
+
+### Discord does not open
+
+- Ensure Brave is installed.
+- Launch Discord from the helper script again.
+- Check whether the native Discord app exists in `/Applications/Discord.app`.
+
+### WARP is not connected
+
+- Confirm Cloudflare WARP is installed.
+- Run the WARP helper script and choose the correct mode.
+- Verify the required permissions are available.
+
+### SpoofDPI does not start
+
+- Confirm the `spoofdpi` binary is available in your environment.
+- Re-run the script after entering the required admin password.
+- Review the output in the dashboard for detailed errors.
+
+---
+
+## License
+
+This project is provided as-is for personal and educational use.
+
+If you publish it publicly, make sure to include the proper project license and credit the original author.
+
+---
+
+## Author
+
+Cnek00
+
+---
+
+## GitHub Setup
+
+If you want to initialize the repository and push it to GitHub, use:
 
 ```bash
-# 1. Homebrew paketleri
-brew install --cask cloudflare-warp
-brew install spoofdpi
-brew install --cask brave-browser
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/Cnek00/DPI-for-macos.git
+git push -u origin main
+```
+
+If you are only updating an existing repository README:
+
+```bash
+git add README.md
+git commit -m "Update README"
+git push origin main
 ```
 
 ---
 
-## 📁 Proje Dosya Yapısı
+## Disclaimer
 
-```
-DPI-for-macos/
-├── Baslat.command              # 🚀 PRO Dashboard Başlatıcı (Çift tıklayın!)
-├── discord_launcher.py         # 🖥️ PRO Dashboard Motoru & Web App Engine
-├── docker_start.command        # 🐳 1-Tık Docker Başlatıcı
-├── Dockerfile                  # 📦 Çok Aşamalı Hafif Docker Kalıbı
-├── docker-compose.yml          # 🐳 Docker Compose Yapılandırması
-├── docker/
-│   └── entrypoint.sh          # ⚙️ Docker Başlangıç Betiği
-├── Warp_Ayarlari.command       # 🛡️ WARP Ayar Betiği
-├── Mac_GoodbyeDPI.command      # 🟢 SpoofDPI Başlatıcı Betiği
-├── Discord_Uygulamasi.command  # 💬 Discord Başlatıcı Betiği
-├── github_push.command         # 📤 GitHub Depo Güncelleme Aracı
-└── README.md                   # 📖 Dokümantasyon
-```
-
----
-
-## 🔒 Güvenlik
-
-- Şifreniz asla dosyalara kaydedilmez; yalnızca oturum süresince bellekte `sudo -S` için tutulur.
-- SpoofDPI yalnızca DNS ve HTTPS SNI paketlerini fragmente eder; verilerinizi şifrelemez veya kaydetmez.
-- Cloudflare WARP resmi ve güvenli DNS/VPN altyapısı sunar.
-
----
-
-## 📄 Lisans
-
-MIT License © 2026 Cnek00
+This project is a macOS utility for testing and experimentation. It does not guarantee access in every network environment, and results may vary depending on system configuration, ISP, firewall, and network policy.
