@@ -1,37 +1,41 @@
 #!/bin/bash
 # ============================================================
-#   GitHub'a Push Scripti
-#   Bu script repoyu GitHub'a yükler
+#   🚀 GITHUB TEK TIKLA GİRİŞ & YÜKLEME
 # ============================================================
 
+clear
+echo "============================================================"
+echo "  🚀 GITHUB HESABINA BAĞLANMA & YÜKLEME"
+echo "============================================================"
 echo ""
-echo "🔐 GitHub kimlik bilgilerinizi girin:"
+echo "  1) Birazdan ekranda 8 haneli bir kod (örn: 1234-ABCD) görünecek."
+echo "  2) Enter'a basınca tarayıcında GitHub sayfası açılacak."
+echo "  3) Kodu sayfaya yapıştırıp 'Authorize' (Yetkilendir) de."
+echo "  4) Tarayıcıyı kapattığında dosyaların otomatik yüklenecek!"
 echo ""
-read -p "  GitHub kullanıcı adı: " GH_USER
-read -sp "  GitHub Personal Access Token (PAT): " GH_TOKEN
+echo "============================================================"
 echo ""
-echo ""
+
+/opt/homebrew/bin/gh auth login --web -h github.com -p https --git-protocol https
+
+/opt/homebrew/bin/gh auth setup-git
 
 cd "$(dirname "$0")"
 
-# Remote URL'yi güncelle
-git remote set-url origin "https://${GH_USER}:${GH_TOKEN}@github.com/Cnek00/DPI-for-macos.git"
-
-echo "📤 GitHub'a yükleniyor..."
+echo ""
+echo "📤 Dosyalar GitHub'a yükleniyor..."
 git push -u origin main --force
 
 if [ $? -eq 0 ]; then
     echo ""
-    echo "✅ Başarıyla yüklendi!"
-    echo "   https://github.com/Cnek00/DPI-for-macos"
+    echo "============================================================"
+    echo "  🎉 TEBRİKLER! BAŞARIYLA YÜKLENDİ!"
+    echo "  🔗 https://github.com/Cnek00/DPI-for-macos"
+    echo "============================================================"
 else
     echo ""
-    echo "❌ Yükleme başarısız!"
-    echo "   GitHub'da Personal Access Token oluşturduğunuzdan emin olun:"
-    echo "   https://github.com/settings/tokens"
+    echo "❌ Yükleme tamamlanamadı."
 fi
 
-# Token'ı temizle (güvenlik için)
-git remote set-url origin "https://github.com/Cnek00/DPI-for-macos.git"
 echo ""
-read -p "Pencereyi kapatmak için Enter'a basın..."
+read -p "Kapatmak için Enter'a basın..."
