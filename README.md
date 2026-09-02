@@ -1,42 +1,45 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/macOS-Native_CustomTkinter_GUI-000000?style=for-the-badge&logo=apple&logoColor=white"/>
+<img src="https://img.shields.io/badge/macOS-PRO_Glassmorphism_Dashboard-000000?style=for-the-badge&logo=apple&logoColor=white"/>
 <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white"/>
 <img src="https://img.shields.io/badge/Discord-Bypass_%26_Ping_Shield-5865F2?style=for-the-badge&logo=discord&logoColor=white"/>
 <img src="https://img.shields.io/badge/SpoofDPI-Deep_Packet_Bypass-10B981?style=for-the-badge&logo=shield&logoColor=white"/>
 
 # 🎮 Discord DPI Bypass & Optimizer PRO for macOS
 
-**macOS için Discord kısıtlamalarını kaldıran, %100 yerel Python masaüstü uygulaması ve Docker container desteği sunan yeni nesil bypass sistemi.**
+**macOS için Discord kısıtlamalarını kaldıran, sıfır ek ping ile çalışan, yeni nesil Cyberpunk & Glassmorphism kontrol paneli ve Docker desteği.**
 
-*Oyun içinde (UDP) sıfır ek ping, canlı Discord ping monitörü, yerel masaüstü arayüzü ve Docker desteği.*
+*Oyun içinde (UDP) sıfır ek ping, canlı Discord ping monitörü, 120 FPS GPU hızlandırmalı masaüstü arayüzü ve Docker altyapısı.*
 
 </div>
 
 ---
 
-## 🌟 Özellikler (v5.0 Native GUI & Docker)
+## 🌟 Neler Sunuyor? (PRO v6.0)
 
-- 🖥️ **%100 Yerel Masaüstü GUI (CustomTkinter)**: Web veya tarayıcı bağımlılığı olmaksızın, tamamen yerel Python penceresi olarak çalışan Discord temalı modern arayüz.
-- 🐳 **Docker & Docker Compose Desteği**: İster yerel macOS uygulamasından çalıştırın, ister Docker container üzerinden (`docker compose up -d`).
-- ⚡ **Tek Tıkla Otomatik Başlatma**: `Cloudflare WARP → SpoofDPI → Discord` sırasını tek tuşla, arka planda sırayla yönetir.
-- 🔐 **Akıllı Sudo / Şifre Yönetimi**: Başlangıçta terminalden veya panel içerisinden şifrenizi girin, sistem arka planda güvenle yetkilendirsin.
+- 🎨 **Next-Gen Cyberpunk & Glassmorphism Dashboard**: Discord Blurple, neon zümrüt yeşili ve koyu cam efektleri, ambient ışık orbları ve ses efektleri.
+- ⚡ **Tek Tıkla Akıllı Başlatma**: `Cloudflare WARP → SpoofDPI → Discord Web App` sırasını tek tuşla, hatasız arka planda yönetir.
+- 🔐 **Gelişmiş Sudo / Şifre Yönetimi**: Şifrenizi ister terminalden açılışta 1 kere girin, ister arayüzdeki şifre kartından test edip kaydedin.
 - 🚀 **Mac Açılışında Otomatik Başlat**: Tek anahtarla bilgisayar açıldığında otomatik başlama desteği (`LaunchAgents`).
-- 📊 **Canlı Discord Ping Monitörü**: `discord.com` sunucularına olan anlık milisaniye gecikmesini gerçek zamanlı takip eder.
+- 📊 **Canlı Discord Ping & Ağ Monitörü**: `discord.com` sunucularına olan anlık milisaniye gecikmenizi canlı çizen dinamik Bezier eğrisi grafiği.
+- 📜 **Canlı Terminal Günlüğü**: Arka planda çalışan komutların anlık çıktılarını gösteren renk kodlu konsol kutusu.
 - 🎮 **Oyun Ping Koruması**: CS2, Valorant, LoL vb. oyunların kullandığı UDP paketleri yönlendirilmez, oyun pinginiz kesinlikle artmaz.
+- 🐳 **Docker & Docker Compose Desteği**: İster yerel macOS uygulamasından çalıştırın, ister Docker container üzerinden (`docker compose up -d`).
 
 ---
 
-## 🚀 Başlatma Yöntemleri
+## 🚀 Başlatma & Kullanım
 
-### 1. Yerel Masaüstü Arayüzü (Önerilen)
+### 1. Yerel Kontrol Paneli (Önerilen)
 
 Sadece **`Baslat.command`** dosyasına çift tıklayın!
 
-1. Terminal açılır, gerekli kütüphaneleri otomatik kontrol eder.
-2. Yönetici şifrenizi girmeniz istenir (isterseniz Enter ile atlayıp panelden de girebilirsiniz).
-3. **Yerel CustomTkinter Masaüstü Penceresi** açılır.
-4. **`⚡ SİSTEMİ BAŞLAT (TEK TIK)`** butonuna tıklayarak tüm sistemi devreye alın.
+1. Terminal açılır ve SpoofDPI için yönetici şifrenizi ister (ister terminalde girin, ister Enter'a basıp panelden girin).
+2. Modern, animasyonlu kontrol paneli bağımsız bir masaüstü penceresi olarak açılır.
+3. **`⚡ SİSTEMİ BAŞLAT (TEK TIK)`** butonuna tıklayın:
+   - 🛡️ WARP bağlanır
+   - 🟢 SpoofDPI bypass başlatılır
+   - 💬 Discord ultra hızlı Web App modunda açılır
 
 ---
 
@@ -45,7 +48,7 @@ Sadece **`Baslat.command`** dosyasına çift tıklayın!
 Eğer Docker Desktop kullanıyorsanız veya sistemi container içinde çalıştırmak isterseniz:
 
 ```bash
-# 1. Docker Compose ile arka planda başlat
+# Docker Compose ile başlat
 docker compose up -d
 
 # Veya tek tıkla başlatmak için:
@@ -75,16 +78,13 @@ Terminal üzerinden tek tek çalıştırmak isterseniz:
 
 ---
 
-## 📋 Manuel Kurulum Gereksinimleri
+## 📋 Gereksinimler
 
 ```bash
 # 1. Homebrew paketleri
 brew install --cask cloudflare-warp
 brew install spoofdpi
 brew install --cask brave-browser
-
-# 2. Python CustomTkinter (Baslat.command otomatik kurar)
-pip3 install customtkinter
 ```
 
 ---
@@ -93,8 +93,8 @@ pip3 install customtkinter
 
 ```
 DPI-for-macos/
-├── Baslat.command              # 🚀 Yerel Masaüstü GUI Başlatıcı
-├── discord_launcher.py         # 🖥️ %100 Yerel Python CustomTkinter Arayüzü
+├── Baslat.command              # 🚀 PRO Dashboard Başlatıcı (Çift tıklayın!)
+├── discord_launcher.py         # 🖥️ PRO Dashboard Motoru & Web App Engine
 ├── docker_start.command        # 🐳 1-Tık Docker Başlatıcı
 ├── Dockerfile                  # 📦 Çok Aşamalı Hafif Docker Kalıbı
 ├── docker-compose.yml          # 🐳 Docker Compose Yapılandırması
@@ -113,6 +113,7 @@ DPI-for-macos/
 
 - Şifreniz asla dosyalara kaydedilmez; yalnızca oturum süresince bellekte `sudo -S` için tutulur.
 - SpoofDPI yalnızca DNS ve HTTPS SNI paketlerini fragmente eder; verilerinizi şifrelemez veya kaydetmez.
+- Cloudflare WARP resmi ve güvenli DNS/VPN altyapısı sunar.
 
 ---
 
