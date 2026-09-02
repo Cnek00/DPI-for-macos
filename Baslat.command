@@ -1,7 +1,8 @@
 #!/bin/bash
 # ============================================================
-#   Discord DPI Bypass - Otomatik Başlatıcı
-#   Sırasıyla: WARP → SpoofDPI → Discord GUI
+#   Discord DPI Bypass v3.0 - Otomatik Başlatıcı
+#   Animasyonlu GUI • Sudo Yönetimi • Startup Desteği
+#   Sırasıyla: WARP → SpoofDPI → Discord
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
