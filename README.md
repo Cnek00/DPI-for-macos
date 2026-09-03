@@ -8,6 +8,8 @@
 # DPI for macOS
 
 A macOS automation toolkit for improving Discord access and reducing DPI-related traffic filtering using Cloudflare WARP, SpoofDPI, and a custom launcher dashboard.
+Turkish : önce warp'ı ve discord'u indirin sonra warp'ı ve discord u bir kere çalıştırın ve kapatın ardından Baslat.command ile discord'u açıp pingsiz oyununuzu oynayabilirsiniz.
+
 
 </div>
 
