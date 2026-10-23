@@ -7,76 +7,77 @@
 
 # DPI for macOS
 
-A macOS automation toolkit for improving Discord access and reducing DPI-related traffic filtering using Cloudflare WARP, SpoofDPI, and a custom launcher dashboard.
-Turkish : önce warp'ı ve discord'u indirin sonra warp'ı ve discord u bir kere çalıştırın ve kapatın ardından Baslat.command ile discord'u açıp pingsiz oyununuzu oynayabilirsiniz.
+A small macOS orchestration layer around **Cloudflare WARP** and **[SpoofDPI](https://github.com/xvzc/SpoofDPI)**.
+It does not implement a DPI bypass engine itself: it starts and coordinates the two upstream tools,
+then opens Discord in a browser app window.
 
+Türkçe hızlı başlangıç: WARP ve Discord'u bir kez açıp kapatın, ardından `Baslat.command` dosyasını
+çalıştırın. WARP bağlantısı, SpoofDPI proxy'si ve Discord başlatma işlemi tek panelden yönetilir.
 
 </div>
 
 ---
 
-## Overview
+## What this project actually does
 
-This project is built for macOS users who want a practical and streamlined workflow to:
+```mermaid
+flowchart LR
+    UI[Baslat.command<br/>macOS dashboard] --> WARP[Cloudflare WARP<br/>VPN or proxy mode]
+    UI --> DPI[SpoofDPI<br/>HTTP proxy + DPI evasion]
+    UI --> DISCORD[Discord<br/>Brave / Chrome app mode]
+    WARP --> NET[Network traffic]
+    DPI --> NET
+```
 
-- launch Discord through a browser/web-app mode optimized for access
-- connect to Cloudflare WARP
-- start SpoofDPI to help bypass DPI and packet inspection
-- manage the flow from a custom desktop-style dashboard
-- run the full setup locally or with Docker
+- **Cloudflare WARP** is Cloudflare's official client. The project only changes its mode and
+  connection state through `warp-cli`.
+- **SpoofDPI** is the DPI-evasion component. It is installed with Homebrew for native macOS use and
+  built from source inside the Docker image.
+- **The dashboard** is a local Python/WebView launcher. It displays status, starts and stops the
+  tools, and keeps their output in one place.
+- **Discord** is opened as a browser app or as the native application. This project does not modify
+  Discord itself.
 
-The tool combines Python automation, shell scripts, and a graphical launcher to provide a simple one-click experience for network optimization and Discord access.
-
----
+The repository is therefore a convenience wrapper and a small UI, not a replacement for WARP or
+SpoofDPI. If you only need the underlying functionality, install those tools directly.
 
 ## Features
 
-- Modern macOS launcher dashboard
-- One-click startup flow: WARP → SpoofDPI → Discord
-- Cloudflare WARP support with VPN or proxy mode
-- SpoofDPI start/stop controls
-- Discord launch support via Brave browser app mode or native app
-- Optional LaunchAgent startup support
-- Docker and Docker Compose support
-- Real-time log output and status monitoring
-- Manual helper scripts for direct control
+- One-click macOS launcher with a desktop-style dashboard
+- Start/stop controls for WARP and SpoofDPI
+- VPN and proxy modes for WARP
+- Automatic SpoofDPI network configuration on macOS
+- Discord launch through Brave, Chrome, the native app, or the default browser
+- Optional LaunchAgent for starting the launcher at login
+- Docker mode for running the SpoofDPI proxy in an isolated container
+- Live status, logs, and latency chart
 
----
+## Project structure
 
-## Project Structure
-
-```bash
+```text
 DPI-for-macos/
-├── Baslat.command              # Main launcher script
-├── discord_launcher.py         # Python automation and dashboard logic
-├── Dockerfile                  # Docker image configuration
-├── docker-compose.yml          # Docker Compose setup
-├── docker/
-│   └── entrypoint.sh          # Docker container startup script
-├── docker_start.command        # Docker startup helper
-├── Warp_Ayarlari.command       # WARP configuration helper
-├── Mac_GoodbyeDPI.command      # SpoofDPI startup helper
-├── Discord_Uygulamasi.command  # Discord launch helper
-├── github_push.command         # GitHub upload helper
-├── README.md                   # Project documentation
-├── LICENSE                     # License file (if present)
-└── .gitignore                  # Git ignore rules (if present)
+├── Baslat.command              # Main macOS launcher
+├── discord_launcher.py         # Dashboard, local HTTP server, and process control
+├── Mac_GoodbyeDPI.command      # Legacy filename; starts SpoofDPI (not GoodbyeDPI)
+├── Warp_Ayarlari.command       # WARP mode helper
+├── Discord_Uygulamasi.command  # Discord helper
+├── docker_start.command        # Docker helper
+├── Dockerfile                  # SpoofDPI container image
+├── docker-compose.yml
+├── docker/entrypoint.sh
+└── README.md
 ```
-
----
 
 ## Requirements
 
-This project targets macOS and assumes the following tools are available:
+For native macOS mode:
 
-- macOS
-- Homebrew
+- macOS and Homebrew
 - Cloudflare WARP
 - SpoofDPI
-- Brave Browser (recommended)
-- Docker Desktop (optional)
-
-Install core dependencies with:
+- Python 3
+- Brave Browser (recommended) or another Chromium browser
+- Discord (optional; the browser app mode does not need it)
 
 ```bash
 brew install --cask cloudflare-warp
@@ -84,35 +85,28 @@ brew install spoofdpi
 brew install --cask brave-browser
 ```
 
-Confirm Docker is installed if needed:
+For Docker mode, install Docker Desktop. Docker mode runs **only SpoofDPI**; WARP and Discord stay
+on the host.
 
-```bash
-docker --version
-```
+## Usage
 
----
-
-## Quick Start
-
-### Option 1: Use the desktop launcher
-
-Double-click the launcher script:
+### Native macOS dashboard
 
 ```bash
 ./Baslat.command
 ```
 
-This opens the dashboard and allows you to:
+From the dashboard:
 
-1. connect to WARP
-2. start SpoofDPI
-3. launch Discord in an optimized browser/app mode
+1. Connect WARP in VPN or proxy mode.
+2. Start SpoofDPI.
+3. Launch Discord.
 
----
+The first run may ask for your macOS administrator password. It is used for the `sudo` call that
+lets SpoofDPI configure the network adapter; the password is kept in memory for the current session
+only and is not written to disk.
 
-### Option 2: Use the helper scripts manually
-
-Run the scripts individually:
+### Manual helpers
 
 ```bash
 ./Warp_Ayarlari.command
@@ -120,114 +114,97 @@ Run the scripts individually:
 ./Discord_Uygulamasi.command
 ```
 
-This gives you direct control over each service.
-
----
-
-### Option 3: Run with Docker
-
-Start the service stack:
+### Docker
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
-Or use the helper script:
+This builds SpoofDPI 1.5.5 from source and exposes its HTTP proxy on `http://127.0.0.1:8080`.
+Point the application you want to route through SpoofDPI at that proxy. WARP is not started inside
+the container, so start it separately on macOS if you need it.
 
-```bash
-./docker_start.command
-```
-
-Stop the container stack:
+Stop the container with:
 
 ```bash
 docker compose down
 ```
 
----
+## How the pieces fit together
 
-## How It Works
+1. WARP connects the host to Cloudflare's network, either as a full VPN or as a local proxy.
+2. SpoofDPI listens as a local HTTP proxy and applies TCP/TLS fragmentation to evade DPI.
+3. The launcher optionally sets the macOS system proxy to SpoofDPI.
+4. Discord is opened in a separate browser app window so it uses the configured network path.
+5. The dashboard polls `warp-cli`, the SpoofDPI process, and `discord.com` latency to show status.
 
-The workflow is intentionally simple:
+SpoofDPI's default HTTP listener is `127.0.0.1:8080`. The Docker entrypoint binds it to `0.0.0.0`
+inside the container and publishes only that port.
 
-1. Cloudflare WARP is enabled in either VPN or proxy mode.
-2. SpoofDPI is started to help bypass DPI and packet inspection.
-3. Discord is launched in a browser-based app flow or native app mode.
-4. Status and command output are displayed inside the dashboard for monitoring.
+## ESP32 technical note
 
-This creates a single environment where the user can launch the required network tools without juggling several commands manually.
+This project cannot run on an ESP32, and the repository does not include ESP32 firmware. The
+components above require a general-purpose operating system:
 
----
+- WARP is a userspace client with its own tunnel and routing integration.
+- SpoofDPI needs a full TCP/IP stack, raw packet manipulation, TLS ClientHello handling, and a
+  local proxy listener.
+- The launcher uses macOS process control, `warp-cli`, `sudo`, and a WebView dashboard.
 
-## Security Notes
+An ESP32 has no macOS networking APIs, cannot execute either binary, and does not have enough RAM
+or CPU headroom for transparent TLS/HTTP proxy processing. It could only act as a simple Wi-Fi
+bridge, which does not provide DPI evasion. A Raspberry Pi or another small Linux machine would be
+the appropriate hardware test rig if a dedicated device is needed.
 
-- Administrator password is only used temporarily in the sudo flow and is not stored permanently.
-- SpoofDPI is a traffic manipulation tool; use it responsibly and in accordance with local policies and platform rules.
-- Cloudflare WARP is an official service used for routing, DNS, and secure network access.
+## Security notes and limitations
 
-> This project is intended for local experimentation and network troubleshooting on macOS. Always follow your local environment policies and platform terms.
-
----
+- DPI evasion is not guaranteed. Results depend on the ISP, network policy, protocol, and the
+  current SpoofDPI/WARP behaviour.
+- Use the project only on networks you are allowed to test and in accordance with local rules and
+  platform terms.
+- The dashboard stores the administrator password only in memory. It does not implement a keychain
+  integration.
+- The Docker image is a development convenience, not a hardened production service. It runs as root
+  because SpoofDPI needs packet-level access.
+- There is no automated test suite yet; validate changes manually on macOS and with a Docker build.
 
 ## Troubleshooting
 
 ### Discord does not open
 
-- Ensure Brave is installed.
-- Launch Discord from the helper script again.
-- Check whether the native Discord app exists in `/Applications/Discord.app`.
+- Check that Brave or Chrome is installed in `/Applications`.
+- Run `Discord_Uygulamasi.command` directly and inspect the terminal output.
+- If neither browser is present, the launcher falls back to the default browser.
 
-### WARP is not connected
+### WARP does not connect
 
-- Confirm Cloudflare WARP is installed.
-- Run the WARP helper script and choose the correct mode.
-- Verify the required permissions are available.
+- Confirm that `warp-cli` is installed and registered: `warp-cli status`.
+- Run `Warp_Ayarlari.command` and choose the required mode.
+- Check the Cloudflare WARP client for account or device-registration errors.
 
 ### SpoofDPI does not start
 
-- Confirm the `spoofdpi` binary is available in your environment.
-- Re-run the script after entering the required admin password.
-- Review the output in the dashboard for detailed errors.
+- Confirm that `spoofdpi` is on `PATH` or installed at
+  `/opt/homebrew/opt/spoofdpi/bin/spoofdpi`.
+- Start it once from a terminal to see the full error output.
+- Make sure the system proxy is not already pointing at another local proxy.
+- Check that port `8080` is free: `lsof -nP -iTCP:8080 -sTCP:LISTEN`.
 
----
+### Docker build fails
 
-## License
+- Confirm Docker Desktop is running and has enough memory.
+- Rebuild without cache: `docker compose build --no-cache`.
+- The image pins SpoofDPI to a released tag. If you need a newer version, update the
+  `SPOOFDPI_VERSION` build argument in the Dockerfile.
 
-This project is provided as-is for personal and educational use.
+## Credits
 
-If you publish it publicly, make sure to include the proper project license and credit the original author.
-
----
-
-## Author
-
-Cnek00
-
----
-
-## GitHub Setup
-
-If you want to initialize the repository and push it to GitHub, use:
-
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/Cnek00/DPI-for-macos.git
-git push -u origin main
-```
-
-If you are only updating an existing repository README:
-
-```bash
-git add README.md
-git commit -m "Update README"
-git push origin main
-```
-
----
+- [Cloudflare WARP](https://1.1.1.1/warp/) for the network client.
+- [xvzc/SpoofDPI](https://github.com/xvzc/SpoofDPI) for the DPI-evasion proxy.
+- The macOS dashboard and helper scripts in this repository are the project-specific layer.
 
 ## Disclaimer
 
-This project is a macOS utility for testing and experimentation. It does not guarantee access in every network environment, and results may vary depending on system configuration, ISP, firewall, and network policy.
+This project is provided for local experimentation, network troubleshooting, and educational use.
+It does not guarantee access in every network environment. The author is not responsible for misuse
+or for violations of network policies, terms of service, or local law.
