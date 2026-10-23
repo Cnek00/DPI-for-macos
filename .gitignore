@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local logs and build output
+*.log
+*.pid
+build/
+dist/
