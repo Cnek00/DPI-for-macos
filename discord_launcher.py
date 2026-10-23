@@ -197,7 +197,12 @@ def do_spoofdpi_start():
     if not Path(spoof_bin).exists():
         spoof_bin = "spoofdpi"
 
-    cmd_args = [spoof_bin, "--auto-configure-network", "--dns-mode", "doh", "--no-tui"]
+    cmd_args = [spoof_bin, "--auto-configure-network", "--dns-mode", "https", "--no-tui"]
+    help_ok, help_out, _ = run_cmd([spoof_bin, "--help"])
+    if help_ok:
+        dns_section = help_out.split("--dns-mode", 1)
+        if len(dns_section) < 2 or "https" not in dns_section[1][:100]:
+            cmd_args[cmd_args.index("https")] = "doh"
 
     pwd = STATE["sudo_password"]
     if pwd:

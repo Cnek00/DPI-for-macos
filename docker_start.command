@@ -27,7 +27,7 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "✅ Container başarıyla çalıştırıldı!"
     echo "   • HTTP/HTTPS DPI Proxy : http://127.0.0.1:8080"
-    echo "   • SOCKS5 Proxy         : socks5://127.0.0.1:40000"
+    echo "   • WARP ve Discord host tarafında çalışır."
     echo ""
     echo "Durdurmak için: docker compose down"
 else
